@@ -3,8 +3,14 @@ using System.Text.Json;
 namespace dwt;
 
 public static class Global {
+    /// <summary>
+    /// Reference to the WebApplication instance.
+    /// </summary>
     public static WebApplication? APP;
 
+    /// <summary>
+    /// Set to true when the server is ready to handle requests.
+    /// </summary>
     public static bool READY = false;
 
     private static readonly Dictionary<string, object> _ok = new Dictionary<string, object> { { "status", 200 } }; 

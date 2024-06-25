@@ -1,3 +1,5 @@
+using dwt;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -6,6 +8,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+Global.APP = app;
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -14,7 +17,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection();
+
+app.MapGet("/health", Global.HANDLER_HEALTH);
+app.MapGet("/ready", Global.HANDLER_READY);
+app.MapGet("/info", Global.HANDLER_INFO);
 
 var summaries = new[]
 {

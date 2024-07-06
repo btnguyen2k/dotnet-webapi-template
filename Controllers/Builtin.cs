@@ -22,25 +22,34 @@ public class BuiltinController : ControllerBase {
     };
 
     /// <summary>
-    /// Health check handler.
+    /// Checks if the server is running.
     /// </summary>
+    /// <response code="200">Server is running.</response>
     [HttpGet("/health")]
+    [HttpGet("/healthz")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
     public IActionResult Health() {
         return Ok(_ok);
     }
 
     /// <summary>
-    /// Readiness check handler.
+    /// Checks if server is ready to handle requests.
     /// </summary>
+    /// <response code="200">Server is ready to handle requests.</response>
+    /// <response code="503">Server is running but NOT yet ready to handle requests.</response>
     [HttpGet("/ready")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public IResult Ready() {
         return Global.Ready ? Results.Ok(_ok) : Results.Json(_notReady, JsonSerializerOptions.Default, null, 503);
     }
 
     /// <summary>
-    /// Handler that returns service's information.
+    /// Returns service's information.
     /// </summary>
+    /// <response code="200">Server's information.</response>
     [HttpGet("/info")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
     public IActionResult Info() {
         return Ok(new Dictionary<string, object> { 
                 { "status", 200 }, 

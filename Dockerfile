@@ -32,7 +32,8 @@ RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
 FROM mcr.microsoft.com/dotnet/aspnet:$DOTNETVERSION-alpine AS final
 WORKDIR /app
 
-COPY --from=build /app .
+COPY --from=build /app ./
+COPY ./config ./config
 
 # Create a non-privileged user that the app will run under.
 # See https://docs.docker.com/go/dockerfile-user-best-practices/

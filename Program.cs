@@ -69,8 +69,7 @@ void AppInit(WebApplication app)
 // Initialize Cryptography keys.
 void InitKeys(WebApplication app)
 {
-    RSA? privKey = null, pubKey = null;
-
+    RSA? privKey = null;
 
     var rsaPfxFile = app.Configuration["Keys:RSAPFXFile"];
     var rsaPrivKeyFile = app.Configuration["Keys:RSAPrivKeyFile"];
@@ -82,19 +81,22 @@ void InitKeys(WebApplication app)
         var rsaPfxPassword = app.Configuration["Keys:RSAPFXPassword"] ?? "";
         using var cert = new X509Certificate2(rsaPfxFile, rsaPfxPassword);
         privKey = cert.GetRSAPrivateKey() ?? throw new InvalidDataException($"Failed to load RSA private key from PFX file: {rsaPfxFile}");
-        pubKey = cert.GetRSAPublicKey();
     }
     else if (!string.IsNullOrWhiteSpace(rsaPrivKeyFile))
     {
+        // load RSA private key from PEM file if available
         app.Logger.LogInformation($"Loading RSA private key from file: {rsaPrivKeyFile}...");
         var rsaPrivKey = File.ReadAllText(rsaPrivKeyFile);
         privKey = RSA.Create();
         privKey.ImportFromPem(rsaPrivKey);
-        pubKey = RSA.Create(privKey.ExportParameters(false));
+    }
+    else
+    {
+        // generate new RSA private key
+        app.Logger.LogInformation("Generating new RSA key...");
+        privKey = RSA.Create(3072);
     }
 
-    if (privKey == null) throw new InvalidDataException("No RSA private key provided!");
-
     Global.RSAPrivKey = privKey;
-    Global.RSAPubKey = pubKey;
+    Global.RSAPubKey = RSA.Create(privKey.ExportParameters(false));
 }

@@ -1,23 +1,31 @@
-using System.Diagnostics;
-using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
 
 namespace dwt.Controllers;
 
 [ApiController]
-public class BuiltinController : ControllerBase {
-
+public class BuiltinController : ControllerBase
+{
     private readonly IConfiguration _conf;
 
     private readonly IWebHostEnvironment _env;
 
-    public BuiltinController(IConfiguration config, IWebHostEnvironment env) {
+    private readonly Dictionary<string, object> _objApp;
+
+    public BuiltinController(IConfiguration config, IWebHostEnvironment env)
+    {
         _conf = config;
         _env = env;
+        _objApp = new Dictionary<string, object>
+        {
+            { "name", _conf["App:Name"]??"" },
+            { "version", _conf["App:Version"]??"" },
+            { "description", _conf["App:Description"]??"" },
+        };
     }
 
-    private static readonly Dictionary<string, object> _ok = new Dictionary<string, object> { { "status", 200 } }; 
-    private static readonly Dictionary<string, object> _notReady = new Dictionary<string, object> { 
+    private static readonly Dictionary<string, object> _ok = new Dictionary<string, object> { { "status", 200 } };
+    private static readonly Dictionary<string, object> _notReady = new Dictionary<string, object> {
         { "status", 503 }, { "message", "Server is not ready to handle requests." }
     };
 
@@ -28,7 +36,8 @@ public class BuiltinController : ControllerBase {
     [HttpGet("/health")]
     [HttpGet("/healthz")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public IActionResult Health() {
+    public IActionResult Health()
+    {
         return Ok(_ok);
     }
 
@@ -40,7 +49,8 @@ public class BuiltinController : ControllerBase {
     [HttpGet("/ready")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
-    public IResult Ready() {
+    public IResult Ready()
+    {
         return Global.Ready ? Results.Ok(_ok) : Results.Json(_notReady, JsonSerializerOptions.Default, null, 503);
     }
 
@@ -50,20 +60,30 @@ public class BuiltinController : ControllerBase {
     /// <response code="200">Server's information.</response>
     [HttpGet("/info")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public IActionResult Info() {
-        return Ok(new Dictionary<string, object> { 
-                { "status", 200 }, 
-                { "data", new {
-                    app = new {
-                        name = _conf["App:Name"],
-                        version = _conf["App:Version"],
-                        description = _conf["App:Description"],
-                    },
-                    server = new {
-                        env = _env.EnvironmentName,
-                        time = DateTime.Now,
-                    },
-                }} 
-            });
+    public IActionResult Info()
+    {
+        var data = new Dictionary<string, object>
+        {
+            { "ready", Global.Ready },
+            { "app", _objApp },
+            { "server", new{
+                env = _env.EnvironmentName,
+                time = DateTime.Now,
+            }},
+        };
+        if (Global.RSAPubKey != null)
+        {
+            data["crypto"] = new Dictionary<string, object>
+            {
+                { "pub_key", Convert.ToBase64String(Global.RSAPubKey.ExportRSAPublicKey()) },
+                { "pub_key_type", "RSA-PKCS#1" },
+            };
+        }
+
+        return Ok(new Dictionary<string, object>
+        {
+            { "status", 200 },
+            { "data", data },
+        });
     }
 }

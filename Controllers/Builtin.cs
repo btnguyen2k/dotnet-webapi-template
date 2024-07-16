@@ -1,9 +1,11 @@
+using dwt.Services;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
 
 namespace dwt.Controllers;
 
 [ApiController]
+[Consumes("application/json")]
 public class BuiltinController : ControllerBase
 {
     private readonly IConfiguration _conf;
@@ -84,6 +86,19 @@ public class BuiltinController : ControllerBase
         {
             { "status", 200 },
             { "data", data },
+        });
+    }
+
+    /// <summary>
+    /// Authenticates the client.
+    /// </summary>
+    [HttpPost("/auth")]
+    public IActionResult Authenticate([FromBody] AuthReq authReq)
+    {
+        return Ok(new Dictionary<string, object>
+        {
+            { "status", 200 },
+            { "data", authReq },
         });
     }
 }

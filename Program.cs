@@ -1,8 +1,6 @@
 using dwt;
 using Microsoft.OpenApi.Models;
 using System.Reflection;
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -52,51 +50,73 @@ if (app.Environment.IsDevelopment())
 
 app.MapControllers();
 
-AppInit(app);
+AppBootstrap(app);
 
 app.Run();
 
-// Application initialization.
-void AppInit(WebApplication app)
+object?[] BuildDIParams(IServiceProvider serviceProvider, Type objType)
 {
-    app.Logger.LogInformation("Initializing application...");
-
-    InitKeys(app);
-
-    Global.Ready = true; // server is ready to handle requests
+    var constructor = objType.GetConstructors().First();
+    var constructorParams = constructor.GetParameters();
+    return constructorParams.Select(parameter => serviceProvider.GetService(parameter.ParameterType)).ToArray();
 }
 
-// Initialize Cryptography keys.
-void InitKeys(WebApplication app)
+// Perform initialization tasks via bootstrappers.
+async void AppBootstrap(WebApplication app)
 {
-    RSA? privKey = null;
+    app.Logger.LogInformation("Start bootstrapping...");
 
-    var rsaPfxFile = app.Configuration["Keys:RSAPFXFile"];
-    var rsaPrivKeyFile = app.Configuration["Keys:RSAPrivKeyFile"];
+    var bootstrapperNames = app.Configuration.GetSection("Bootstrappers").Get<List<String>>() ?? new List<String>();
+    var asyncBootstrapTasks = new List<Task>();
+    foreach (var bootstrapperName in bootstrapperNames)
+    {
+        app.Logger.LogInformation($"Loading bootstrapper: {bootstrapperName}...");
 
-    if (!string.IsNullOrWhiteSpace(rsaPfxFile))
-    {
-        // load RSA private key from PFX file if available
-        app.Logger.LogInformation($"Loading RSA private key from PFX file: {rsaPfxFile}...");
-        var rsaPfxPassword = app.Configuration["Keys:RSAPFXPassword"] ?? "";
-        using var cert = new X509Certificate2(rsaPfxFile, rsaPfxPassword);
-        privKey = cert.GetRSAPrivateKey() ?? throw new InvalidDataException($"Failed to load RSA private key from PFX file: {rsaPfxFile}");
-    }
-    else if (!string.IsNullOrWhiteSpace(rsaPrivKeyFile))
-    {
-        // load RSA private key from PEM file if available
-        app.Logger.LogInformation($"Loading RSA private key from file: {rsaPrivKeyFile}...");
-        var rsaPrivKey = File.ReadAllText(rsaPrivKeyFile);
-        privKey = RSA.Create();
-        privKey.ImportFromPem(rsaPrivKey);
-    }
-    else
-    {
-        // generate new RSA private key
-        app.Logger.LogInformation("Generating new RSA key...");
-        privKey = RSA.Create(3072);
+        var bootstrapperType = Type.GetType(bootstrapperName);
+        if (bootstrapperType == null)
+        {
+            app.Logger.LogWarning($"Bootstrapper not found: {bootstrapperName}");
+            continue;
+        }
+
+        if (bootstrapperType.IsAssignableTo(typeof(IBootstrapper)))
+        {
+            var bootstrapper = Activator.CreateInstance(bootstrapperType, BuildDIParams(app.Services, bootstrapperType)) as IBootstrapper;
+            if (bootstrapper == null)
+            {
+                app.Logger.LogWarning($"Bootstrapper not found: {bootstrapperName}");
+                continue;
+            }
+            bootstrapper.Bootstrap(app);
+        }
+        else if (bootstrapperType.IsAssignableTo(typeof(IAsyncBootstrapper)))
+        {
+            var bootstrapper = Activator.CreateInstance(bootstrapperType, BuildDIParams(app.Services, bootstrapperType)) as IAsyncBootstrapper;
+            if (bootstrapper == null)
+            {
+                app.Logger.LogWarning($"Bootstrapper not found: {bootstrapperName}");
+                continue;
+            }
+            asyncBootstrapTasks.Add(bootstrapper.BootstrapAsync(app));
+        }
+        else
+        {
+            app.Logger.LogError($"Bootstrapper {bootstrapperName} does not implement IBootstrapper or IAsyncBootstrapper");
+        }
     }
 
-    Global.RSAPrivKey = privKey;
-    Global.RSAPubKey = RSA.Create(privKey.ExportParameters(false));
+    while (asyncBootstrapTasks.Count > 0)
+    {
+        var finishedTask = await Task.WhenAny(asyncBootstrapTasks);
+        try { await finishedTask; }
+        catch (Exception e)
+        {
+            // failure of an async bootstrapper task is logged, but does not stop the bootstrapping process
+            app.Logger.LogError(e, "Error executing bootstrapper task.");
+        }
+        asyncBootstrapTasks.Remove(finishedTask);
+    }
+
+    Global.Ready = true; // server is ready to handle requests
+    app.Logger.LogInformation("Bootstrapping completed.");
 }

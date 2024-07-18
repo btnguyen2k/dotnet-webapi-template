@@ -89,16 +89,23 @@ public class BuiltinController : ControllerBase
         });
     }
 
+    private static readonly Dictionary<string, object> _noAuthenticatorOrErrorAuthenticating = new Dictionary<string, object>
+    {
+        { "status", 500 },
+        { "message", "No authenticator defined or error while authenticating." },
+    };
+
     /// <summary>
     /// Authenticates the client.
     /// </summary>
     [HttpPost("/auth")]
     public IActionResult Authenticate([FromBody] AuthReq authReq)
     {
-        return Ok(new Dictionary<string, object>
+        var resp = Global.Authenticator?.Authenticate(authReq);
+        return resp == null ? StatusCode(500, _noAuthenticatorOrErrorAuthenticating) : StatusCode(resp.Status, new Dictionary<string, object>
         {
-            { "status", 200 },
-            { "data", authReq },
+            { "status", resp.Status },
+            { "data", resp.Status==200? new { token=resp.Token, expiry=resp.Expiry } : new { error=resp.Error } },
         });
     }
 }

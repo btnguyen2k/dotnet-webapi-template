@@ -1,4 +1,5 @@
 using dwt;
+using dwt.Helpers;
 using Microsoft.OpenApi.Models;
 using System.Reflection;
 
@@ -43,6 +44,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseMiddleware<ErrorHandlerMiddleware>();
 
 // app.UseHttpsRedirection();
 

@@ -6,6 +6,10 @@ namespace dwt.Helpers;
 /// <summary>
 /// Middleware that handles exceptions and returns a JSON response.
 /// </summary>
+/// <remarks>
+///     Sample usage:
+///         app.UseMiddleware&lt;ErrorHandlerMiddleware&gt;();
+/// </remarks>
 public class ErrorHandlerMiddleware
 {
     private readonly RequestDelegate _next;

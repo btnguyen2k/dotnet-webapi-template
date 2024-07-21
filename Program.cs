@@ -1,16 +1,20 @@
 using dwt;
 using dwt.Helpers;
+using dwt.Services;
 using Microsoft.OpenApi.Models;
 using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
+var services = builder.Services;
 
 // Add services to the container.
-builder.Services.AddControllers();
-// builder.Services.AddDbContext<TodoContext>(opt => opt.UseInMemoryDatabase("TodoList"));
+services.AddSingleton<IUserService, StaticConfigUserService>();
+
+services.AddControllers();
+// services.AddDbContext<TodoContext>(opt => opt.UseInMemoryDatabase("TodoList"));
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-// builder.Services.AddEndpointsApiExplorer(); // required only for minimal APIs
-builder.Services.AddSwaggerGen(options =>
+// services.AddEndpointsApiExplorer(); // required only for minimal APIs
+services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
     {
@@ -27,6 +31,34 @@ builder.Services.AddSwaggerGen(options =>
         {
             Name = "MIT - License",
             Url = new Uri("https://github.com/btnguyen2k/dotnet-webapi-template/blob/main/LICENSE.md")
+        }
+    });
+
+    // Define the OAuth2.0 scheme that's in use (i.e., Implicit Flow)
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement()
+    {
+        {
+           new OpenApiSecurityScheme
+           {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                },
+                Scheme = "oauth2",
+                Name = "Bearer",
+                In = ParameterLocation.Header,
+           },
+           new List<string>()
         }
     });
 
@@ -57,13 +89,6 @@ AppBootstrap(app);
 
 app.Run();
 
-object?[] BuildDIParams(IServiceProvider serviceProvider, Type objType)
-{
-    var constructor = objType.GetConstructors().First();
-    var constructorParams = constructor.GetParameters();
-    return constructorParams.Select(parameter => serviceProvider.GetService(parameter.ParameterType)).ToArray();
-}
-
 // Perform initialization tasks via bootstrappers.
 async void AppBootstrap(WebApplication app)
 {
@@ -84,7 +109,7 @@ async void AppBootstrap(WebApplication app)
 
         if (bootstrapperType.IsAssignableTo(typeof(IBootstrapper)))
         {
-            var bootstrapper = Activator.CreateInstance(bootstrapperType, BuildDIParams(app.Services, bootstrapperType)) as IBootstrapper;
+            var bootstrapper = ReflectionHelper.CreateInstance<IBootstrapper>(app.Services, bootstrapperType);
             if (bootstrapper == null)
             {
                 app.Logger.LogWarning($"Bootstrapper not found: {bootstrapperName}");
@@ -94,7 +119,7 @@ async void AppBootstrap(WebApplication app)
         }
         else if (bootstrapperType.IsAssignableTo(typeof(IAsyncBootstrapper)))
         {
-            var bootstrapper = Activator.CreateInstance(bootstrapperType, BuildDIParams(app.Services, bootstrapperType)) as IAsyncBootstrapper;
+            var bootstrapper = ReflectionHelper.CreateInstance<IAsyncBootstrapper>(app.Services, bootstrapperType);
             if (bootstrapper == null)
             {
                 app.Logger.LogWarning($"Bootstrapper not found: {bootstrapperName}");

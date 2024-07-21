@@ -84,5 +84,5 @@ public class AuthResp
     /// <summary>
     /// When the token expires.
     /// </summary>
-    public DateTimeOffset? Expiry { get { return _expiry; } }
+    public DateTime? Expiry { get { return _expiry; } }
 }

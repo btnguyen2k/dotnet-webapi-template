@@ -1,12 +1,9 @@
-﻿using dwt.Entities;
-using Microsoft.AspNetCore.Authorization;
+﻿using dwt.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.IdentityModel.Tokens;
-using System.Data;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Text.RegularExpressions;
 
 namespace dwt.Helpers;
 

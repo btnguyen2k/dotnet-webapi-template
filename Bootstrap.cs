@@ -1,9 +1,7 @@
-﻿using dwt.Entities;
-using dwt.Helpers;
+﻿using dwt.Helpers;
+using dwt.Models;
 using dwt.Services;
-using Microsoft.AspNetCore.Components;
 using Microsoft.IdentityModel.Tokens;
-using System.Runtime.CompilerServices;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -132,8 +130,8 @@ public class SampleAuthenticatorAsyncBootstrapper(IServiceProvider serviceProvid
     class SampleJwtAuthenticator : IAuthenticator
     {
         private readonly int expirationSeconds;
-        private readonly IUserService userService;
-        public SampleJwtAuthenticator(IConfiguration config, IUserService userService)
+        private readonly IUserRepository userService;
+        public SampleJwtAuthenticator(IConfiguration config, IUserRepository userService)
         {
             expirationSeconds = int.Parse(config["Jwt:Expiration"] ?? "3600");
             this.userService = userService;

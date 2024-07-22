@@ -1,12 +1,12 @@
 ﻿using dwt.Helpers;
-using dwt.Services;
+using dwt.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace dwt.Controllers;
 
 [ApiController]
 [Consumes("application/json")]
-public class UsersController(IUserService userService) : ControllerBase
+public class UsersController(IUserRepository userRepo) : ControllerBase
 {
     [HttpGet("/api/users")]
     [JwtAuthorize]
@@ -16,22 +16,23 @@ public class UsersController(IUserService userService) : ControllerBase
         {
             status = 200,
             message = "ok",
-            data = userService.GetAll()
+            data = userRepo.GetAll()
         });
     }
+
+    private static readonly Dictionary<string, object> _notFound = new()
+    {
+        { "status", 404 }, { "message", "User not found" }
+    };
 
     [HttpGet("/api/users/{id}")]
     [JwtAuthorize]
     public IActionResult Get(string id)
     {
-        var user = userService.GetUser(id);
+        var user = userRepo.GetUser(id);
         if (user == null)
         {
-            return NotFound(new
-            {
-                status = 404,
-                message = "User not found"
-            });
+            return NotFound(_notFound);
         }
         return Ok(new
         {

@@ -1,9 +1,6 @@
-﻿using dwt.Entities;
-using Microsoft.AspNetCore.Razor.TagHelpers;
+﻿namespace dwt.Models;
 
-namespace dwt.Services;
-
-public interface IUserService
+public interface IUserRepository
 {
     public User? GetUser(string id);
 
@@ -11,13 +8,13 @@ public interface IUserService
 }
 
 /// <summary>
-/// (Sample) An implementation of IUserService that fetches user accounts from appsettings.json file.
+/// (Sample) An implementation of IUserRepository that fetches user accounts from appsettings.json file.
 /// </summary>
-public class StaticConfigUserService : IUserService
+public class StaticConfigUserRepository : IUserRepository
 {
     private readonly User[] users;
 
-    public StaticConfigUserService(IConfiguration config)
+    public StaticConfigUserRepository(IConfiguration config)
     {
         users = config.GetSection("Users").Get<User[]>(options => options.BindNonPublicProperties = true) ?? [];
     }

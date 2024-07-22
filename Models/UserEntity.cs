@@ -1,7 +1,7 @@
 ﻿using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
-namespace dwt.Entities;
+namespace dwt.Models;
 
 /// <summary>
 /// (Sample) This entity represents a user account.

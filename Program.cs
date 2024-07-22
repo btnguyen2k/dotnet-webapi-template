@@ -1,17 +1,22 @@
 using dwt;
 using dwt.Helpers;
-using dwt.Services;
+using dwt.Models;
 using Microsoft.OpenApi.Models;
 using System.Reflection;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
 
 // Add services to the container.
-services.AddSingleton<IUserService, StaticConfigUserService>();
+services.AddSingleton<IUserRepository, StaticConfigUserRepository>();
+services.AddSingleton<ITodoRepository, TodoDbContextRepository>(factory =>
+{
+    var options = new DbContextOptionsBuilder<TodoDbContextRepository>().UseInMemoryDatabase("TodoList").Options;
+    return new TodoDbContextRepository(options);
+});
 
 services.AddControllers();
-// services.AddDbContext<TodoContext>(opt => opt.UseInMemoryDatabase("TodoList"));
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 // services.AddEndpointsApiExplorer(); // required only for minimal APIs
 services.AddSwaggerGen(options =>

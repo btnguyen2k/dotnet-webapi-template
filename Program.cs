@@ -82,7 +82,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseMiddleware<ErrorHandlerMiddleware>();
+app.UseMiddleware<ErrorHandlerMiddleware>()
+    .UseMiddleware<JwtMiddleware>();
 
 // app.UseHttpsRedirection();
 

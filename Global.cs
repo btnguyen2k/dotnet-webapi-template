@@ -32,4 +32,6 @@ public static class Global
     /// Reference to the authenticator instance to authenticate requests.
     /// </summary>
     public static IAuthenticator? Authenticator { get; set; } = null;
+
+    public const string HTTP_CTX_ITEM_USERID = "UserId";
 }

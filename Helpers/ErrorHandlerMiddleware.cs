@@ -4,7 +4,7 @@ using System.Text.Json;
 namespace dwt.Helpers;
 
 /// <summary>
-/// Middleware that handles exceptions and returns a JSON response.
+/// Middleware that handles exceptions and returns corresponding JSON responses.
 /// </summary>
 /// <remarks>
 ///     Sample usage:

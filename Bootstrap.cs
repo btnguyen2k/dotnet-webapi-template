@@ -148,7 +148,7 @@ public class SampleAuthenticatorAsyncBootstrapper(IServiceProvider serviceProvid
             var expiry = DateTime.Now.AddSeconds(expirationSeconds);
             return AuthResp.New(200, JwtRepository.GenerateToken(new ClaimsIdentity(new Claim[]
             {
-                new Claim(ClaimTypes.NameIdentifier, user.Id),
+                new Claim(ClaimTypes.Upn, user.Id),
                 new Claim(ClaimTypes.Role, JsonSerializer.Serialize(user.Roles)),
                 // Add more claims as needed
             })), expiry);

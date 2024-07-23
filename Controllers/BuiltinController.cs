@@ -1,12 +1,9 @@
 using dwt.Services;
 using Microsoft.AspNetCore.Mvc;
-using System.Text.Json;
 
 namespace dwt.Controllers;
 
-[ApiController]
-[Consumes("application/json")]
-public class BuiltinController : ControllerBase
+public class BuiltinController : DwtBaseController
 {
     private readonly IConfiguration _conf;
 
@@ -26,11 +23,6 @@ public class BuiltinController : ControllerBase
         };
     }
 
-    private static readonly Dictionary<string, object> _ok = new Dictionary<string, object> { { "status", 200 } };
-    private static readonly Dictionary<string, object> _notReady = new Dictionary<string, object> {
-        { "status", 503 }, { "message", "Server is not ready to handle requests." }
-    };
-
     /// <summary>
     /// Checks if the server is running.
     /// </summary>
@@ -40,7 +32,7 @@ public class BuiltinController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public IActionResult Health()
     {
-        return Ok(_ok);
+        return ResponseOk();
     }
 
     /// <summary>
@@ -51,9 +43,9 @@ public class BuiltinController : ControllerBase
     [HttpGet("/ready")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
-    public IResult Ready()
+    public IActionResult Ready()
     {
-        return Global.Ready ? Results.Ok(_ok) : Results.Json(_notReady, JsonSerializerOptions.Default, null, 503);
+        return Global.Ready ? ResponseOk() : Response503("");
     }
 
     /// <summary>
@@ -81,15 +73,10 @@ public class BuiltinController : ControllerBase
                 { "pub_key_type", "RSA-PKCS#1" },
             };
         }
-
-        return Ok(new Dictionary<string, object>
-        {
-            { "status", 200 },
-            { "data", data },
-        });
+        return ResponseOk(data);
     }
 
-    private static readonly Dictionary<string, object> _noAuthenticatorOrErrorAuthenticating = new Dictionary<string, object>
+    private static readonly Dictionary<string, object> _noAuthenticatorOrErrorAuthenticating = new()
     {
         { "status", 500 },
         { "message", "No authenticator defined or error while authenticating." },
@@ -98,14 +85,20 @@ public class BuiltinController : ControllerBase
     /// <summary>
     /// Authenticates the client.
     /// </summary>
+    /// <response code="200">Authentication was succesful.</response>
+    /// <response code="403">Authentication failed.</response>
+    /// <response code="500">No authenticator defined or error while authenticating.</response>
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     [HttpPost("/auth")]
     public IActionResult Authenticate([FromBody] AuthReq authReq)
     {
         var resp = Global.Authenticator?.Authenticate(authReq);
-        return resp == null ? StatusCode(500, _noAuthenticatorOrErrorAuthenticating) : StatusCode(resp.Status, new Dictionary<string, object>
-        {
-            { "status", resp.Status },
-            { "data", resp.Status==200? new { token=resp.Token, expiry=resp.Expiry } : new { error=resp.Error } },
-        });
+        return resp == null
+            ? ResponseNotOk(500, "No authenticator defined or error while authenticating.")
+            : resp.Status == 200
+                ? ResponseOk(new { token = resp.Token, expiry = resp.Expiry })
+                : ResponseNotOk(resp.Status, resp.Error);
     }
 }

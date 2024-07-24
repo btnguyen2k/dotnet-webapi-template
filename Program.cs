@@ -15,6 +15,12 @@ services.AddSingleton<ITodoRepository, TodoDbContextRepository>(factory =>
     var options = new DbContextOptionsBuilder<TodoDbContextRepository>().UseInMemoryDatabase("TodoList").Options;
     return new TodoDbContextRepository(options);
 });
+services.AddSingleton<INoteRepository, NoteDbContextRepository>(factory =>
+{
+    var connStr = builder.Configuration.GetConnectionString("NotesDbContext");
+    var options = new DbContextOptionsBuilder<NoteDbContextRepository>().UseSqlite(connStr).Options;
+    return new NoteDbContextRepository(options);
+});
 
 services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

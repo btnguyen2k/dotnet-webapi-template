@@ -14,7 +14,6 @@ namespace dwt.Controllers;
 [Consumes("application/json")]
 public abstract class DwtBaseController : ControllerBase
 {
-
     /// <summary>
     /// Generic response for "401 Unauthorized" errors.
     /// </summary>
@@ -22,6 +21,15 @@ public abstract class DwtBaseController : ControllerBase
     {
         status = 401,
         message = "Authentication required."
+    });
+
+    /// <summary>
+    /// Generic response for "403 Forbidden" errors.
+    /// </summary>
+    protected static readonly ObjectResult _respAccessDenied = new NotFoundObjectResult(new
+    {
+        status = 403,
+        message = "Access denied."
     });
 
     /// <summary>
@@ -111,4 +119,14 @@ public abstract class DwtBaseController : ControllerBase
     {
         StatusCode = 503
     };
+
+    /// <summary>
+    /// Get the attached user-id from the http-context.
+    /// </summary>
+    /// <returns></returns>
+    protected string? GetRequestUserId()
+    {
+        HttpContext.Items.TryGetValue(Global.HTTP_CTX_ITEM_USERID, out var userId);
+        return userId?.ToString();
+    }
 }

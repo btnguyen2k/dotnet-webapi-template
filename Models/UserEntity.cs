@@ -46,6 +46,11 @@ public class User
         }
     }
 
+    public bool HasRole(string role)
+    {
+        return Roles.Contains(role);
+    }
+
     public bool Authenticate(string? password)
     {
         return Password == password;

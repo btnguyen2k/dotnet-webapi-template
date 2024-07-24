@@ -52,6 +52,7 @@ public class TodosController(IUserRepository userRepo, ITodoRepository todoRepo)
     /// <param name="id"></param>
     /// <returns></returns>
     /// <remarks>Users can only mark their own todo items as completed.</remarks>
+    [HttpPost("/api/todos/{id}/completed")]
     public ActionResult<TodoItem> MarkCompleted(string id)
     {
         var user = userRepo.GetUser(GetRequestUserId() ?? "");

@@ -13,13 +13,23 @@ services.AddSingleton<IUserRepository, StaticConfigUserRepository>();
 services.AddSingleton<ITodoRepository, TodoDbContextRepository>(factory =>
 {
     var options = new DbContextOptionsBuilder<TodoDbContextRepository>().UseInMemoryDatabase("TodoList").Options;
-    return new TodoDbContextRepository(options);
+    var dbContext = new TodoDbContextRepository(options);
+    if (builder.Environment.IsDevelopment())
+    {
+        dbContext.Database.EnsureCreated();
+    }
+    return dbContext;
 });
 services.AddSingleton<INoteRepository, NoteDbContextRepository>(factory =>
 {
     var connStr = builder.Configuration.GetConnectionString("NotesDbContext");
     var options = new DbContextOptionsBuilder<NoteDbContextRepository>().UseSqlite(connStr).Options;
-    return new NoteDbContextRepository(options);
+    var dbContext = new NoteDbContextRepository(options);
+    if (builder.Environment.IsDevelopment())
+    {
+        dbContext.Database.EnsureCreated();
+    }
+    return dbContext;
 });
 
 services.AddControllers();

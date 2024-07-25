@@ -5,9 +5,9 @@ using System.Text.Json.Serialization;
 namespace dwt.Models;
 
 /// <summary>
-/// A request to add new Note.
+/// A request to add new Note or update an existing one.
 /// </summary>
-public class NewNoteReq
+public class NewOrUpdateNoteReq
 {
     [BindProperty(Name = "title")]
     public string Title { get; set; } = "";
@@ -42,6 +42,10 @@ public class Note
     [JsonPropertyName("created")]
     [Column("tcreated")]
     public DateTime Created { get; set; } = DateTime.Now;
+
+    [JsonPropertyName("updated_user_id")]
+    [Column("last_updated_user_id")]
+    public string? LastUpdatedUserId { get; set; }
 
     [JsonPropertyName("updated")]
     [Column("tupdated")]

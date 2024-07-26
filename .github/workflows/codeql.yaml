@@ -3,10 +3,10 @@ name: "CodeQL"
 on:
   push:
     branches: [ '*' ]
+    paths-ignore:
+      - '.github/**'
   pull_request:
     branches: [ '*' ]
-  exclude:
-    - path: '.github/'
   schedule:
     # run every Saturday at 00:00 UTC
     - cron: '0 0 * * 6'

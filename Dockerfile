@@ -3,7 +3,7 @@
 
 ARG DOTNETVERSION=8.0
 
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:$DOTNETVERSION-alpine AS build
+FROM mcr.microsoft.com/dotnet/sdk:$DOTNETVERSION-alpine AS build
 
 COPY . /source
 
@@ -29,7 +29,7 @@ RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
 # If you need to enable globalization and time zones:
 # https://github.com/dotnet/dotnet-docker/blob/main/samples/enable-globalization.md
 
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/aspnet:$DOTNETVERSION-alpine AS final
+FROM mcr.microsoft.com/dotnet/aspnet:$DOTNETVERSION-alpine AS final
 WORKDIR /app
 
 COPY --from=build /app ./

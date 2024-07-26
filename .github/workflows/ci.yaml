@@ -1,0 +1,40 @@
+name: 'ci'
+
+on:
+  push:
+    branches: [ '*' ]
+  pull_request:
+    types: [ opened, edited, reopened, synchronize, review_requested ]
+    branches: [ '*' ]
+  workflow_call:
+
+env:
+  PROJ_FILE: dwt.csproj
+
+jobs:
+  BuildAndTest:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        dotnet: [ '8.x' ]
+    name: Run tests with Go ${{ matrix.go }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup dotnet ${{ matrix.dotnet }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ matrix.dotnet }}
+      - name: Display dotnet version
+        run: dotnet --version
+      - name: Install dependencies
+        run: dotnet restore ${{ env.PROJ_FILE }}
+      - name: Build
+        run: dotnet build --no-restore ${{ env.PROJ_FILE }}
+      - name: Test
+        run: dotnet test --no-restore ${{ env.PROJ_FILE }}
+      - name: Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}

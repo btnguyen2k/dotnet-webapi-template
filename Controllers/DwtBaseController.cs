@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using dwt.Services;
+using Microsoft.AspNetCore.Mvc;
 using System.Net.NetworkInformation;
 
 namespace dwt.Controllers;
@@ -15,110 +16,73 @@ namespace dwt.Controllers;
 public abstract class DwtBaseController : ControllerBase
 {
     /// <summary>
-    /// Generic response for "401 Unauthorized" errors.
+    /// Convenience method to return a 200 OK response.
     /// </summary>
-    protected static readonly ObjectResult _respAuthenticationRequired = new NotFoundObjectResult(new
-    {
-        status = 401,
-        message = "Authentication required."
-    });
-
-    /// <summary>
-    /// Generic response for "403 Forbidden" errors.
-    /// </summary>
-    protected static readonly ObjectResult _respAccessDenied = new NotFoundObjectResult(new
-    {
-        status = 403,
-        message = "Access denied."
-    });
-
-    /// <summary>
-    /// Generic response for "404 Not Found" errors.
-    /// </summary>
-    protected static readonly ObjectResult _respNotFound = new NotFoundObjectResult(new
-    {
-        status = 404,
-        message = "Not found."
-    });
+    /// <returns></returns>
+    protected static ObjectResult ResponseOk() => ResponseOk<object>(null);
 
     /// <summary>
     /// Generic response for "200 OK".
     /// </summary>
-    protected static readonly ObjectResult _respOk = new OkObjectResult(new
-    {
-        status = 200,
-        message = "Ok."
-    });
+    protected static readonly ObjectResult _respOk = ResponseNoData(200, "Ok.");
 
     /// <summary>
-    /// Convenience method to return a 200 OK response.
-    /// </summary>
-    /// <returns></returns>
-    protected static ObjectResult ResponseOk() => ResponseOk(null);
-
-    /// <summary>
-    /// Convenience method to return a 200 OK response.
+    /// Convenience method to return a 200 OK response with data.
     /// </summary>
     /// <param name="data"></param>
     /// <returns></returns>
-    protected static ObjectResult ResponseOk(object? data) => data == null ? _respOk : new OkObjectResult(new
+    protected static ObjectResult ResponseOk<T>(T? data) => data == null ? _respOk : new OkObjectResult(new ApiResp<T>
     {
-        status = 200,
-        message = "Ok.",
-        data
+        Status = 200,
+        Message = "Ok.",
+        Data = data
     });
 
     /// <summary>
-    /// Convenience method to return a non-200 response.
+    /// Convenience method to return a response without attached data.
     /// </summary>
     /// <param name="statusCode"></param>
     /// <returns></returns>
-    protected static ObjectResult ResponseNotOk(int statusCode) => ResponseNotOk(statusCode, null);
+    protected static ObjectResult ResponseNoData(int statusCode) => ResponseNoData(statusCode, null);
 
     /// <summary>
-    /// Convenience method to return a non-200 response.
+    /// Convenience method to return a response with a message and without attached data.
     /// </summary>
     /// <param name="statusCode"></param>
     /// <param name="message"></param>
     /// <returns></returns>
-    protected static ObjectResult ResponseNotOk(int statusCode, string? message) => new ObjectResult(String.IsNullOrWhiteSpace(message) ? new
+    protected static ObjectResult ResponseNoData(int statusCode, string? message) => new(String.IsNullOrWhiteSpace(message) ? new ApiResp<object>
     {
-        status = statusCode
+        Status = statusCode
     }
-    : new
+    : new ApiResp<object>
     {
-        status = statusCode,
-        message
+        Status = statusCode,
+        Message = message
     })
     {
         StatusCode = statusCode
     };
 
     /// <summary>
-    /// Generic response for "503 Service Unavailable" errors.
+    /// Generic response for "401 Unauthorized" errors.
     /// </summary>
-    protected static readonly ObjectResult _respServiceUnavailable = new ObjectResult(new
-    {
-        status = 503,
-        message = "Server is unavailable to handle the request."
-    })
-    {
-        StatusCode = 503
-    };
+    protected static readonly ObjectResult _respAuthenticationRequired = ResponseNoData(401, "Authentication required.");
 
     /// <summary>
-    /// Convenience method to return a 503 Service Unavailable response.
+    /// Generic response for "403 Forbidden" errors.
     /// </summary>
-    /// <param name="message"></param>
-    /// <returns></returns>
-    protected static ObjectResult Response503(string? message) => String.IsNullOrWhiteSpace(message) ? _respServiceUnavailable : new(new
-    {
-        status = 503,
-        message
-    })
-    {
-        StatusCode = 503
-    };
+    protected static readonly ObjectResult _respAccessDenied = ResponseNoData(403, "Access denied.");
+
+    /// <summary>
+    /// Generic response for "404 Not Found" errors.
+    /// </summary>
+    protected static readonly ObjectResult _respNotFound = ResponseNoData(404, "Not found.");
+
+    /// <summary>
+    /// Generic response for "503 Service Unavailable" errors.
+    /// </summary>
+    protected static readonly ObjectResult _respServiceUnavailable = ResponseNoData(503, "Server is unavailable to handle the request.");
 
     /// <summary>
     /// Get the attached user-id from the http-context.

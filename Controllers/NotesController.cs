@@ -1,5 +1,6 @@
 ﻿using dwt.Helpers;
 using dwt.Models;
+using dwt.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace dwt.Controllers;
@@ -12,7 +13,7 @@ public class NotesController(IUserRepository userRepo, INoteRepository noteRepo)
     /// </summary>
     /// <returns></returns>
     [HttpGet("/api/notes")]
-    public ActionResult<List<Note>> GetAll()
+    public ActionResult<ApiResp<List<Note>>> GetAll()
     {
         var notes = noteRepo.GetAll();
         return ResponseOk(notes);
@@ -24,7 +25,7 @@ public class NotesController(IUserRepository userRepo, INoteRepository noteRepo)
     /// <param name="id"></param>
     /// <returns></returns>
     [HttpGet("/api/notes/{id}")]
-    public ActionResult<Note> GetById(string id)
+    public ActionResult<ApiResp<Note>> GetById(string id)
     {
         var note = noteRepo.Get(id);
         return note != null ? ResponseOk(note) : _respNotFound;
@@ -36,7 +37,7 @@ public class NotesController(IUserRepository userRepo, INoteRepository noteRepo)
     /// <param name="req"></param>
     /// <returns></returns>
     [HttpPost("/api/notes")]
-    public ActionResult<Note> Create([FromBody] NewOrUpdateNoteReq req)
+    public ActionResult<ApiResp<Note>> Create([FromBody] NewOrUpdateNoteReq req)
     {
         var user = userRepo.GetUser(GetRequestUserId() ?? "");
         if (user != null)
@@ -59,7 +60,7 @@ public class NotesController(IUserRepository userRepo, INoteRepository noteRepo)
     /// <param name="id"></param>
     /// <returns></returns>
     [HttpPut("/api/notes/{id}")]
-    public ActionResult<Note> Update([FromBody] NewOrUpdateNoteReq req, string id)
+    public ActionResult<ApiResp<Note>> Update([FromBody] NewOrUpdateNoteReq req, string id)
     {
         var user = userRepo.GetUser(GetRequestUserId() ?? "");
         if (user != null)
@@ -75,7 +76,7 @@ public class NotesController(IUserRepository userRepo, INoteRepository noteRepo)
                 {
                     return ResponseOk(note);
                 }
-                return ResponseNotOk(500, "Unknow error occured while updating note.");
+                return ResponseNoData(500, "Unknow error occured while updating note.");
             }
             return _respNotFound;
         }
@@ -89,7 +90,7 @@ public class NotesController(IUserRepository userRepo, INoteRepository noteRepo)
     /// <returns></returns>
     /// <remarks>Only note's owner can delete the note.</remarks>
     [HttpDelete("/api/notes/{id}")]
-    public ActionResult<bool> Delete(string id)
+    public ActionResult<ApiResp<bool>> Delete(string id)
     {
         var note = noteRepo.Get(id);
         if (note == null)
@@ -108,6 +109,6 @@ public class NotesController(IUserRepository userRepo, INoteRepository noteRepo)
             return ResponseOk(true);
         }
 
-        return ResponseNotOk(500, "Unknow error occured while deleting note.");
+        return ResponseNoData(500, "Unknow error occured while deleting note.");
     }
 }

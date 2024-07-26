@@ -1,5 +1,6 @@
 ﻿using dwt.Helpers;
 using dwt.Models;
+using dwt.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace dwt.Controllers;
@@ -13,7 +14,7 @@ public class UsersController(IUserRepository userRepo) : DwtBaseController
     /// <remarks>Only ADMIN role can see all users.</remarks>
     [HttpGet("/api/users")]
     [JwtAuthorize(Roles = "ADMIN")]
-    public IActionResult GetAll()
+    public ActionResult<ApiResp<User>> GetAll()
     {
         return ResponseOk(userRepo.GetAll());
     }
@@ -29,7 +30,7 @@ public class UsersController(IUserRepository userRepo) : DwtBaseController
     /// </remarks>
     [HttpGet("/api/users/{id}")]
     [JwtAuthorize]
-    public IActionResult Get(string id)
+    public ActionResult<ApiResp<User>> Get(string id)
     {
         var user = userRepo.GetUser(id);
         if (user == null)

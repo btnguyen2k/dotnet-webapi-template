@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using System.Text.Json.Serialization;
 
 namespace dwt.Services;
 
@@ -58,31 +59,33 @@ public class AuthResp
     }
 
     private int _status;
-    private string _error = "";
-    private string _token = "";
+    private string? _error;
+    private string? _token;
     private DateTime? _expiry;
 
     /// <summary>
     /// Authentication status.
     /// </summary>
     /// <value>200: success</value>
-    [BindProperty(Name = "status")]
+    [JsonIgnore]
     public int Status { get { return _status; } }
 
     /// <summary>
     /// Additional error information, if any.
     /// </summary>
-    [BindProperty(Name = "error")]
+    [JsonPropertyName("error")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public string? Error { get { return _error; } }
 
     /// <summary>
     /// Authentication token, if successful.
     /// </summary>
-    [BindProperty(Name = "token")]
+    [JsonPropertyName("token")]
     public string? Token { get { return _token; } }
 
     /// <summary>
     /// When the token expires.
     /// </summary>
+    [JsonPropertyName("expiry")]
     public DateTime? Expiry { get { return _expiry; } }
 }

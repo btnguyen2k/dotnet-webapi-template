@@ -17,12 +17,9 @@ ARG TARGETARCH
 ARG PROJECT=dwt
 
 # Build the application.
-# Leverage a cache mount to /root/.nuget/packages so that subsequent builds don't have to re-download packages.
-RUN echo TARGETARCH: ${TARGETARCH}
-RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
-    dotnet restore -a ${TARGETARCH} ${PROJECT}.csproj
-RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
-    dotnet publish ${PROJECT}.csproj -a ${TARGETARCH} --no-restore -o /app
+RUN echo "I am running on $BUILDPLATFORM, building for $TARGETPLATFORM / $TARGETARCH"
+RUN dotnet restore -a ${TARGETARCH} ${PROJECT}.csproj
+RUN dotnet publish ${PROJECT}.csproj -a ${TARGETARCH} --no-restore -o /app
 
 ################################################################################
 

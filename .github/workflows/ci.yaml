@@ -40,7 +40,7 @@ jobs:
       #     fail_ci_if_error: true
       #     token: ${{ secrets.CODECOV_TOKEN }}
 
-  TestDockerfile (Linux):
+  TestDockerfileLinux:
     needs: BuildAndTest
     runs-on: ubuntu-latest
     strategy:

@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        dotnet: [ '8.x', '9.x' ]
+        dotnet: [ '8.x', '9.x', 'latest' ]
     name: Run tests with dotnet ${{ matrix.dotnet }}
     steps:
       - name: Checkout code
@@ -50,8 +50,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      # - name: Set up QEMU
-      #   uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Build Docker image for ${{ matrix.platforms }}
@@ -61,6 +59,27 @@ jobs:
           push: false
           tags: test
           file: ./Dockerfile
+          context: ./
+
+  TestDockerfileWindows:
+    needs: BuildAndTest
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        platforms: [ 'windows/amd64', 'windows/arm64' ]
+    name: Test building Docker images for Windows
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build Docker image for ${{ matrix.platforms }}
+        uses: docker/build-push-action@v6
+        with:
+          platforms: ${{ matrix.platforms }}
+          push: false
+          tags: test
+          file: ./Dockerfile.win
           context: ./
 
   ReleaseDryRun:

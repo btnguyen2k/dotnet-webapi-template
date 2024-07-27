@@ -80,10 +80,11 @@ jobs:
         uses: mr-smithers-excellent/docker-build-push@v6
         with:
           platform: ${{ matrix.platforms }}
-          push: false
+          image: test
           tags: test
-          file: ./Dockerfile.win
-          context: ./
+          pushImage: false
+          dockerfile: ./Dockerfile.win
+          directory: ./
 
   ReleaseDryRun:
     if: github.event_name == 'push'

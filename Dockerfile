@@ -18,7 +18,7 @@ ARG TARGETPLATFORM
 ARG PROJECT=dwt
 
 # Build the application.
-RUN echo "I am running on $BUILDPLATFORM, building for $TARGETPLATFORM ($TARGETARCH)"
+RUN echo "$PROJECT is running on $BUILDPLATFORM, building for $TARGETPLATFORM ($TARGETARCH)"
 RUN dotnet restore -a ${TARGETARCH} ${PROJECT}.csproj
 RUN dotnet publish ${PROJECT}.csproj -a ${TARGETARCH} --no-restore -o /app
 

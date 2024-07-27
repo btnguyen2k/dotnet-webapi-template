@@ -40,10 +40,13 @@ jobs:
       #     fail_ci_if_error: true
       #     token: ${{ secrets.CODECOV_TOKEN }}
 
-  TestDockerfile:
+  TestDockerfile (Linux):
     needs: BuildAndTest
     runs-on: ubuntu-latest
-    name: Test Dockerfile
+    strategy:
+      matrix:
+        platorms: [ 'linux/amd64', 'linux/arm64' ]
+    name: Test build Docker image for ${{ matrix.platforms }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -54,7 +57,7 @@ jobs:
       - name: Build docker image
         uses: docker/build-push-action@v6
         with:
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ matrix.platforms }}
           push: false
           tags: test
           file: ./Dockerfile

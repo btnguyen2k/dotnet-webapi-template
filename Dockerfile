@@ -3,10 +3,9 @@
 
 ARG DOTNETVERSION=8.0
 
-FROM mcr.microsoft.com/dotnet/sdk:$DOTNETVERSION-alpine AS build
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:$DOTNETVERSION-alpine AS build
 
 COPY . /source
-
 WORKDIR /source
 
 # This is the architecture you’re building for, which is passed in by the builder.
@@ -19,11 +18,12 @@ ARG PROJECT=dwt
 
 # Build the application.
 # Leverage a cache mount to /root/.nuget/packages so that subsequent builds don't have to re-download packages.
-# If TARGETARCH is "amd64", replace it with "x64" - "x64" is .NET's canonical name for this and "amd64" doesn't
-#   work in .NET 6.0.
 RUN echo TARGETARCH: ${TARGETARCH}
 RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
-    dotnet publish ${PROJECT}.csproj -a ${TARGETARCH/amd64/x64} --use-current-runtime --self-contained false -o /app
+    dotnet restore -a ${TARGETARCH} ${PROJECT}.csproj
+RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
+    dotnet publish ${PROJECT}.csproj -a ${TARGETARCH} --no-restore -o /app
+    # --use-current-runtime --self-contained false -o /app
 
 ################################################################################
 

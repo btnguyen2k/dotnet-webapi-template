@@ -3,6 +3,7 @@
 
 ARG DOTNETVERSION=8.0
 
+# Use --platform=$BUILDPLATFORM in order to correctly pull the base image for the build platform.
 FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:$DOTNETVERSION-alpine AS build
 
 COPY . /source
@@ -17,7 +18,7 @@ ARG TARGETPLATFORM
 ARG PROJECT=dwt
 
 # Build the application.
-RUN echo "I am running on $BUILDPLATFORM, building for $TARGETPLATFORM / $TARGETARCH"
+RUN echo "I am running on $BUILDPLATFORM, building for $TARGETPLATFORM ($TARGETARCH)"
 RUN dotnet restore -a ${TARGETARCH} ${PROJECT}.csproj
 RUN dotnet publish ${PROJECT}.csproj -a ${TARGETARCH} --no-restore -o /app
 

@@ -3,8 +3,8 @@
 
 ARG DOTNETVERSION=8.0
 
+# Version of the Windows image must match the host OS version (e.g. both must be 2022).
 FROM mcr.microsoft.com/dotnet/sdk:$DOTNETVERSION-nanoserver-ltsc2022 AS build
-# FROM mcr.microsoft.com/dotnet/sdk:$DOTNETVERSION-windowsservercore-ltsc2022 AS build
 
 COPY . /source
 WORKDIR /source
@@ -18,9 +18,9 @@ ARG TARGETPLATFORM
 ARG PROJECT=dwt
 
 # Build the application.
-RUN echo "I am running on %BUILDPLATFORM%, building for %TARGETPLATFORM% / %TARGETARCH%"
-RUN echo "I am running on $BUILDPLATFORM, building for $TARGETPLATFORM / $TARGETARCH"
-RUN dotnet restore -a ${TARGETARCH} ${PROJECT}.csproj
+RUN echo I am running on %BUILDPLATFORM%, building for %TARGETPLATFORM% (%TARGETARCH%)
+RUN echo I am running on $BUILDPLATFORM, building for $TARGETPLATFORM ($TARGETARCH)
+# RUN dotnet restore -a ${TARGETARCH} ${PROJECT}.csproj
 # RUN dotnet publish ${PROJECT}.csproj -a ${TARGETARCH} --no-restore -o /app
 
 # ################################################################################

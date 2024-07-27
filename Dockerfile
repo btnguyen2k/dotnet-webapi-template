@@ -2,14 +2,15 @@
 # syntax=docker/dockerfile:1
 
 ARG DOTNETVERSION=8.0
-ARG TARGETARCH
-ARG BUILDPLATFORM
-ARG TARGETPLATFORM
 
 FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:$DOTNETVERSION-alpine AS build
 
 COPY . /source
 WORKDIR /source
+
+ARG TARGETARCH
+ARG BUILDPLATFORM
+ARG TARGETPLATFORM
 
 # This is the project name, used to build the application.
 # Change this to match the name of your project.

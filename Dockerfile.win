@@ -2,15 +2,16 @@
 # syntax=docker/dockerfile:1
 
 ARG DOTNETVERSION=8.0
-ARG TARGETARCH
-ARG BUILDPLATFORM
-ARG TARGETPLATFORM
 
 FROM mcr.microsoft.com/dotnet/sdk:$DOTNETVERSION-nanoserver-ltsc2022 AS build
 # FROM mcr.microsoft.com/dotnet/sdk:$DOTNETVERSION-windowsservercore-ltsc2022 AS build
 
 COPY . /source
 WORKDIR /source
+
+ARG TARGETARCH
+ARG BUILDPLATFORM
+ARG TARGETPLATFORM
 
 # This is the project name, used to build the application.
 # Change this to match the name of your project.

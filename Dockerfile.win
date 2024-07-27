@@ -2,16 +2,15 @@
 # syntax=docker/dockerfile:1
 
 ARG DOTNETVERSION=8.0
+ARG TARGETARCH
+ARG BUILDPLATFORM
+ARG TARGETPLATFORM
 
-# FROM mcr.microsoft.com/dotnet/sdk:$DOTNETVERSION-nanoserver-1809 AS build
-FROM mcr.microsoft.com/dotnet/sdk:$DOTNETVERSION-windowsservercore-ltsc2019 AS build
+FROM mcr.microsoft.com/dotnet/sdk:$DOTNETVERSION-nanoserver-ltsc2022 AS build
+# FROM mcr.microsoft.com/dotnet/sdk:$DOTNETVERSION-windowsservercore-ltsc2022 AS build
 
 COPY . /source
 WORKDIR /source
-
-# This is the architecture you’re building for, which is passed in by the builder.
-# Placing it here allows the previous steps to be cached across architectures.
-ARG TARGETARCH
 
 # This is the project name, used to build the application.
 # Change this to match the name of your project.
@@ -19,6 +18,7 @@ ARG PROJECT=dwt
 
 # Build the application.
 RUN echo "I am running on %BUILDPLATFORM%, building for %TARGETPLATFORM% / %TARGETARCH%"
+RUN echo "I am running on $BUILDPLATFORM, building for $TARGETPLATFORM / $TARGETARCH"
 RUN dotnet restore -a ${TARGETARCH} ${PROJECT}.csproj
 # RUN dotnet publish ${PROJECT}.csproj -a ${TARGETARCH} --no-restore -o /app
 

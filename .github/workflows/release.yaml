@@ -1,0 +1,144 @@
+# Automatically release a new version when a PR is merged to branch `release`
+
+name: 'release'
+on:
+  pull_request:
+    types: [ closed ]
+    branches: [ release ]
+
+env:
+  BRANCH_TO_RELEASE: 'release'
+  TAG_PREFIX: 'v'
+  FILE_CHANGELOG: 'RELEASE-NOTES.md'
+
+jobs:
+  CallCI:
+    uses: ./.github/workflows/ci.yaml
+
+  ReleaseDryRun:
+    runs-on: ubuntu-latest
+    needs: [ CallCI ]
+    if: |
+      github.event.pull_request.merged == true
+    outputs:
+      RESULT: ${{ steps.release_dry_run.outputs.result }}
+      VERSION: ${{ steps.release_dry_run.outputs.releaseVersion }}
+      RELEASE_NOTES: ${{ steps.release_dry_run.outputs.releaseNotes }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+      - name: Release (dry-run)
+        id: release_dry_run
+        uses: btnguyen2k/action-semrelease@v3
+        with:
+          dry-run: true
+          auto-mode: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          tag-major-release: false
+          tag-minor-release: false
+          branches: ${{ env.BRANCH_TO_RELEASE }}
+          tag-prefix: ${{ env.TAG_PREFIX }}
+          tag-only: true
+
+  Release:
+    runs-on: ubuntu-latest
+    if: |
+      github.event.pull_request.merged == true
+    needs: [ ReleaseDryRun ]
+    permissions:
+      contents: write # to be able to publish a GitHub release
+    outputs:
+      RESULT: ${{ needs.ReleaseDryRun.outputs.RESULT }}
+      VERSION: ${{ needs.ReleaseDryRun.outputs.VERSION }}
+      RELEASE_NOTES: ${{ needs.ReleaseDryRun.outputs.RELEASE_NOTES }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update module meta
+        run: |
+          RESULT='${{ needs.ReleaseDryRun.outputs.RESULT }}'
+          VERSION='${{ needs.ReleaseDryRun.outputs.VERSION }}'
+          RELEASE_NOTES='${{ needs.ReleaseDryRun.outputs.RELEASE_NOTES }}'
+
+          echo "🕘 Updating module meta..."
+          echo "   - RESULT: ${RESULT}"
+          echo "   - VERSION: ${VERSION}"
+          echo "   - RELEASE_NOTES: ${RELEASE_NOTES}"
+
+          if [ "${RESULT}" == "SUCCESS" ]; then
+            DATE=`date +%Y-%m-%d`
+            head -1 ${FILE_CHANGELOG} > .temp.md
+            echo -e "\n## ${DATE} - v${VERSION}\n\n${RELEASE_NOTES}" >> .temp.md
+            tail -n +2 ${FILE_CHANGELOG} >> .temp.md
+            mv -f .temp.md ${FILE_CHANGELOG}
+            echo ========== content of ${FILE_CHANGELOG} ==========
+            cat ${FILE_CHANGELOG}
+
+            echo ========== update .md files ==========
+            sed -i -E "s/<<VERSION>>/v${VERSION}/" ./*.md
+
+            echo ========== commit updates ==========
+            git config --global user.email "<>"
+            git config --global user.name "CI Build"
+            git commit -am "Update ${FILE_CHANGELOG} and *.md files for new version ${VERSION}"
+            git push origin ${BRANCH_TO_RELEASE}
+
+            echo ========== tag ==========
+            git tag -f -a "${TAG_PREFIX}${VERSION}" -m "Release ${TAG_PREFIX}/v${VERSION}"
+            git push origin "${TAG_PREFIX}${VERSION}" -f
+            echo "✅ Done."
+          else
+            echo "❎ SKIPPED."
+          fi
+      - name: Create release
+        uses: actions/github-script@v7
+        env:
+          RESULT: ${{ needs.ReleaseDryRun.outputs.RESULT }}
+          VERSION: ${{ needs.ReleaseDryRun.outputs.VERSION }}
+          RELEASE_NOTES: ${{ needs.ReleaseDryRun.outputs.RELEASE_NOTES }}
+        with:
+            script: |
+              if (process.env['RESULT'] != 'SUCCESS') {
+                console.log('❎ SKIPPED.');
+                return;
+              }
+              const {data: release} = await github.rest.repos.createRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag_name: process.env['TAG_PREFIX'] + process.env['VERSION'],
+                name: process.env['TAG_PREFIX'] + process.env['VERSION'],
+                body: process.env['RELEASE_NOTES'],
+                draft: false,
+                prerelease: false,
+              });
+              console.log('✅ Created release: ', release);
+
+  MergeToMain:
+    runs-on: ubuntu-latest
+    needs: [ Release ]
+    permissions:
+      pull-requests: write # to be able to create PRs or comment on released PRs
+    steps:
+      - uses: actions/github-script@v7
+        env:
+          RESULT: ${{ needs.Release.outputs.RESULT }}
+          RELEASE_NOTES: ${{ needs.Release.outputs.RELEASE_NOTES }}
+        with:
+          script: |
+            if (process.env['RESULT'] != 'SUCCESS') {
+              console.log('❎ SKIPPED.');
+              return;
+            }
+            const {data: pr} = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: "Merge to main after releasing new version ${{ needs.Release.outputs.VERSION }}",
+              body: process['env']['RELEASE_NOTES'],
+              head: process['env']['BRANCH_TO_RELEASE'],
+              base: 'main',
+              maintainer_can_modify: true,
+            });
+            console.log('✅ Created PR: ', pr);

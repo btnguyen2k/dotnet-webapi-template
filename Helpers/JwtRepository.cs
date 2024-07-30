@@ -69,12 +69,39 @@ public static class JwtRepository
     public static string GenerateToken(DateTime? expiry, ClaimsIdentity subject)
     {
         var token = new JwtSecurityToken(
-            Issuer,
-            Audience,
-            subject.Claims,
+            issuer: Issuer,
+            audience: Audience,
+            claims: subject.Claims,
             expires: expiry?.ToUniversalTime() ?? DateTime.UtcNow.AddSeconds(DefaultExpirationSeconds),
             signingCredentials: new SigningCredentials(Key, Algorithm)
         );
         return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    /// <summary>
+    /// Validates a JWT token.
+    /// </summary>
+    /// <param name="token"></param>
+    /// <returns></returns>
+    public static ClaimsPrincipal ValidateToken(string token)
+    {
+        return ValidateToken(token, new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = Key,
+            ValidateIssuer = false,
+            ValidateAudience = false,
+            ClockSkew = TimeSpan.Zero,
+            //ValidateIssuer = true,
+            //ValidIssuer = Issuer,
+            //ValidateAudience = true,
+            //ValidAudience = Audience,
+        });
+    }
+
+    public static ClaimsPrincipal ValidateToken(string token, TokenValidationParameters validationParameters)
+    {
+        var tokenHandler = new JwtSecurityTokenHandler();
+        return tokenHandler.ValidateToken(token, validationParameters, out _);
     }
 }

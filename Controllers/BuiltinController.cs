@@ -1,3 +1,4 @@
+using dwt.Helpers;
 using dwt.Services;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json.Serialization;
@@ -140,6 +141,30 @@ public class BuiltinController : DwtBaseController
     public ActionResult<ApiResp<AuthResp>> Authenticate([FromBody] AuthReq authReq)
     {
         var resp = Global.Authenticator?.Authenticate(authReq);
+        return resp == null
+            ? ResponseNoData(500, "No authenticator defined or error while authenticating.")
+            : resp.Status == 200
+                ? ResponseOk(resp)
+                : ResponseNoData(resp.Status, resp.Error);
+    }
+
+    /// <summary>
+    /// Refreshes the client's authentication token.
+    /// </summary>
+    /// <returns></returns>
+    /// <response code="200">Authentication was succesful.</response>
+    /// <response code="403">Authentication failed.</response>
+    /// <response code="500">No authenticator defined or error while refreshing the token.</response>
+    [HttpPost("/auth/refresh")]
+    [JwtAuthorize]
+    public ActionResult<ApiResp<AuthResp>> RefreshAuthToken()
+    {
+        var token = Request.Headers["Authorization"].FirstOrDefault()?.Split(" ").Last();
+        if (token == null)
+        {
+            return ResponseNoData(403, "No token provided.");
+        }
+        var resp = Global.Authenticator?.Refresh(token);
         return resp == null
             ? ResponseNoData(500, "No authenticator defined or error while authenticating.")
             : resp.Status == 200

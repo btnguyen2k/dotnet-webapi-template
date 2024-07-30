@@ -127,6 +127,9 @@ public class SampleAuthenticatorAsyncBootstrapper(IServiceProvider serviceProvid
         logger.LogInformation($"Sample Authenticator initialized.");
     }
 
+    /// <summary>
+    /// JWT implementation of IAuthenticator.
+    /// </summary>
     class SampleJwtAuthenticator : IAuthenticator
     {
         private readonly int expirationSeconds;
@@ -137,6 +140,18 @@ public class SampleAuthenticatorAsyncBootstrapper(IServiceProvider serviceProvid
             this.userService = userService;
         }
 
+
+        private string GenerateToken(User user, DateTime expiry)
+        {
+            return JwtRepository.GenerateToken(new ClaimsIdentity(
+            [
+                new Claim(ClaimTypes.Upn, user.Id),
+                new Claim(ClaimTypes.Role, JsonSerializer.Serialize(user.Roles)),
+                // Add more claims as needed
+            ]));
+        }
+
+        /// <inheritdoc />
         public AuthResp Authenticate(AuthReq req)
         {
             User? user = userService.GetUser(req.Id ?? "");
@@ -144,19 +159,29 @@ public class SampleAuthenticatorAsyncBootstrapper(IServiceProvider serviceProvid
             {
                 return AuthResp.AuthFailed;
             }
-
             var expiry = DateTime.Now.AddSeconds(expirationSeconds);
-            return AuthResp.New(200, JwtRepository.GenerateToken(new ClaimsIdentity(new Claim[]
-            {
-                new Claim(ClaimTypes.Upn, user.Id),
-                new Claim(ClaimTypes.Role, JsonSerializer.Serialize(user.Roles)),
-                // Add more claims as needed
-            })), expiry);
+            return AuthResp.New(200, GenerateToken(user, expiry), expiry);
         }
 
-        public AuthResp Refresh(string token)
+        /// <inheritdoc />
+        public AuthResp Refresh(string jwtToken)
         {
-            return new AuthResp { };
+            try
+            {
+                var principal = JwtRepository.ValidateToken(jwtToken);
+                var claimUserId = principal.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Upn)?.Value;
+                User? user = userService.GetUser(claimUserId ?? "");
+                if (user == null)
+                {
+                    return AuthResp.AuthFailed;
+                }
+                var expiry = DateTime.Now.AddSeconds(expirationSeconds);
+                return AuthResp.New(200, GenerateToken(user, expiry), expiry);
+            }
+            catch (Exception e)
+            {
+                return AuthResp.New(403, e.Message);
+            }
         }
     }
 }

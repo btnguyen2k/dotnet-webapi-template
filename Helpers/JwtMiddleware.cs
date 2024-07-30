@@ -16,41 +16,23 @@ namespace dwt.Helpers;
 ///     Sample usage:
 ///         app.UseMiddleware&lt;JwtMiddleware&gt;();
 /// </remarks>
-public class JwtMiddleware
+public class JwtMiddleware(RequestDelegate next)
 {
-    private readonly RequestDelegate _next;
-    private readonly ILogger<ErrorHandlerMiddleware> _logger;
-
-    public JwtMiddleware(ILogger<ErrorHandlerMiddleware> logger, RequestDelegate next)
-    {
-        _next = next;
-        _logger = logger;
-    }
-
     public async Task Invoke(HttpContext context)
     {
         var token = context.Request.Headers["Authorization"].FirstOrDefault()?.Split(" ").Last();
         if (token != null)
         {
-            attachUserIdToContext(context, token);
+            AttachUserIdToContext(context, token);
         }
-        await _next(context);
+        await next(context);
     }
 
-    private void attachUserIdToContext(HttpContext context, string jwtToken)
+    private static void AttachUserIdToContext(HttpContext context, string jwtToken)
     {
-        var tokenHandler = new JwtSecurityTokenHandler();
-        var validationParameters = new TokenValidationParameters
-        {
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = JwtRepository.Key,
-            ValidateIssuer = false,
-            ValidateAudience = false,
-            ClockSkew = TimeSpan.Zero
-        };
         try
         {
-            var principal = tokenHandler.ValidateToken(jwtToken, validationParameters, out var validatedToken);
+            var principal = JwtRepository.ValidateToken(jwtToken);
             var claimUserId = principal.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Upn)?.Value;
             context.Items[Global.HTTP_CTX_ITEM_USERID] = claimUserId;
         }

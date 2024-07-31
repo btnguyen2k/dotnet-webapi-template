@@ -1,0 +1,7 @@
+# Generate its content quickly using the following command:"
+#   git log origin..HEAD | grep "^\s" > .semrelease/this_release
+
+- Feature: RESTful API skeleton, using JSON for input and output.
+- Feature: Authentication and authorization using JWT.
+- Feature: Sample database access using Entity Framework.
+- Feature: GitHub Actions integrated.

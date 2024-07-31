@@ -1,0 +1,6 @@
+@dwt_HostAddress = http://localhost:5072
+
+GET {{dwt_HostAddress}}/info
+Accept: application/json
+
+###

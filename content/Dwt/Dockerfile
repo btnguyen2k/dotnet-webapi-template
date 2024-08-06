@@ -16,8 +16,8 @@ ARG TARGETPLATFORM
 
 # Build the application.
 RUN echo "Running on $BUILDPLATFORM, building for $TARGETPLATFORM ($TARGETARCH)"
-RUN dotnet restore -a ${TARGETARCH}
-RUN dotnet publish -a ${TARGETARCH} --no-restore --property:PublishDir=/app
+RUN dotnet restore -a $TARGETARCH
+RUN dotnet publish -a $TARGETARCH --no-restore --property:PublishDir=/app
 
 ################################################################################
 
@@ -43,7 +43,7 @@ RUN adduser \
     --home "/nonexistent" \
     --shell "/sbin/nologin" \
     --no-create-home \
-    --uid "${UID}" \
+    --uid "$UID" \
     appuser
 USER appuser
 

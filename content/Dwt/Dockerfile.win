@@ -28,8 +28,8 @@ WORKDIR /app
 ARG BASENAME="Dwt"
 
 COPY --from=build /app ./
-COPY %BASENAME%/config ./config
-COPY %BASENAME%/data ./data
+COPY ${BASENAME}.Api/config ./config
+COPY ${BASENAME}.Api/data ./data
 
 # Create a non-privileged user that the app will run under.
 # See https://docs.docker.com/go/dockerfile-user-best-practices/

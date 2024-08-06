@@ -5,6 +5,7 @@
 
 # Custom ignore rules
 content/Dwt/Dwt.Api/data/sqlite/*.db
+.temp/
 
 # User-specific files
 *.rsuser

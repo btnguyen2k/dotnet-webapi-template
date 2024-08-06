@@ -10,10 +10,13 @@ updates:
       day: "sunday"
 
   - package-ecosystem: "nuget"
-    directory: "/"
+    directory: "/content/Dwt/Dwt.Shared"
     schedule:
       interval: "weekly"
-      day: "sunday"
-#    ignore:
-#      - dependency-name: "*"
-#        update-types: ["version-update:semver-major"] # do not update to major version as it may contain breaking changes
+      day: "saturday"
+
+  - package-ecosystem: "nuget"
+    directory: "/content/Dwt/Dwt.Api"
+    schedule:
+      interval: "weekly"
+      day: "saturday"

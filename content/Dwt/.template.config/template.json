@@ -1,0 +1,13 @@
+{
+    "$schema": "http://json.schemastore.org/template",
+    "author": "Me",
+    "classifications": [ "Web API", "Web", "API" ],
+    "identity": "WebAPITemplate",
+    "name": "ASP.NET Core Web API Solution",
+    "shortName": "dwt",
+    "sourceName":"dwt",
+    "tags": {
+      "language": "C#",
+      "type": "solution"
+    }
+  }

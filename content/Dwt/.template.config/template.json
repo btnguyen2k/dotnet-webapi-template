@@ -1,14 +1,15 @@
 {
-    "$schema": "http://json.schemastore.org/template",
-    "author": "btnguyen2k <btnguyen2k at gmail>",
-    "classifications": [ "Web API", "Web", "API" ],
-    "identity": "WebAPITemplate",
-    "groupIdentity": "Ddth",
-    "name": "ASP.NET Core Web API Solution Template",
-    "shortName": "dwt",
-    "exclude": [ "**/[Bb]in/**", "**/[Oo]bj/**", ".template.config/**/*", "**/*.filelist", "**/*.user", "**/*.lock.json", ".vs/**/*" ],
-    "tags": {
-      "language": "C#",
-      "type": "solution"
-    }
+  "$schema": "http://json.schemastore.org/template",
+  "author": "btnguyen2k <btnguyen2k at gmail>",
+  "classifications": [ "Web API", "Web", "API" ],
+  "identity": "WebAPITemplate",
+  "groupIdentity": "Ddth",
+  "name": "ASP.NET Core Web API Solution Template",
+  "shortName": "dwt",
+  "sourceName": "Dwt",
+  "exclude": [ "**/[Bb]in/**", "**/[Oo]bj/**", ".template.config/**/*", "**/*.filelist", "**/*.user", "**/*.lock.json", ".vs/**/*" ],
+  "tags": {
+    "language": "C#",
+    "type": "solution"
   }
+}

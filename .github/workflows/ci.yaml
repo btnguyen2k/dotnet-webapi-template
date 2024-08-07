@@ -141,3 +141,57 @@ jobs:
         run: cd temp/ && dotnet build --no-restore
       - name: Test
         run: cd temp/ && dotnet test --no-restore
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          push: false
+          tags: test
+          file: temp/Dockerfile
+          context: temp/
+
+  TestGenerateSolutionWindows:
+    runs-on: windows-latest
+    needs: [BuildAndTestTemplate, TestDockerfileWindowsTemplate]
+    strategy:
+      matrix:
+        dotnet: [ '8.x', '9.x' ]
+    name: Build and test the generated solution with dotnet ${{ matrix.dotnet }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup dotnet ${{ matrix.dotnet }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ matrix.dotnet }}
+      - name: Display dotnet version
+        run: dotnet --version
+      - name: Install template
+        run: cd ${{ env.TEMPLATE_ROOT }} && dotnet new install ./
+      - name: Generate solution
+        run: |
+          mkdir temp
+          cd temp
+          dotnet new dwt
+      - name: Install dependencies
+        run: |
+          cd temp
+          dotnet restore
+      - name: Build
+        run: |
+          cd temp
+          dotnet build --no-restore
+      - name: Test
+        run: |
+          cd temp
+          dotnet test --no-restore
+      # - name: Set up Docker Buildx
+      #   uses: docker/setup-buildx-action@v3
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          push: false
+          tags: test
+          file: temp/Dockerfile.win
+          context: temp/

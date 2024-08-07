@@ -1,0 +1,22 @@
+# Please see the documentation for all configuration options:
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+
+  - package-ecosystem: "nuget"
+    directory: "/Dwt.Shared"
+    schedule:
+      interval: "weekly"
+      day: "saturday"
+
+  - package-ecosystem: "nuget"
+    directory: "/Dwt.Api"
+    schedule:
+      interval: "weekly"
+      day: "saturday"

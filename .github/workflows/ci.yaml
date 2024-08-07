@@ -111,3 +111,33 @@ jobs:
           pushImage: false
           dockerfile: ${{ env.TEMPLATE_ROOT }}/Dockerfile.win
           directory: ${{ env.TEMPLATE_ROOT }}/
+
+  TestGenerateSolutionLinux:
+    runs-on: ubuntu-latest
+    needs: BuildAndTestTemplate, TestDockerfileLinuxTemplate
+    strategy:
+      matrix:
+        dotnet: [ '8.x', '9.x' ]
+    name: Build and test the generated solution with dotnet ${{ matrix.dotnet }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup dotnet ${{ matrix.dotnet }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ matrix.dotnet }}
+      - name: Display dotnet version
+        run: dotnet --version
+      - name: Install template
+        run: cd ${{ env.TEMPLATE_ROOT }} && dotnet new install ./
+      - name: Generate solution
+        run: |
+          mkdir temp && \
+          cd temp && \
+          dotnet new dwt
+      - name: Install dependencies
+        run: cd temp/ && dotnet restore
+      - name: Build
+        run: cd temp/ && dotnet build --no-restore
+      - name: Test
+        run: cd temp/ && dotnet test --no-restore

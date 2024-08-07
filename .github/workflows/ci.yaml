@@ -114,7 +114,7 @@ jobs:
 
   TestGenerateSolutionLinux:
     runs-on: ubuntu-latest
-    needs: BuildAndTestTemplate, TestDockerfileLinuxTemplate
+    needs: [BuildAndTestTemplate, TestDockerfileLinuxTemplate]
     strategy:
       matrix:
         dotnet: [ '8.x', '9.x' ]

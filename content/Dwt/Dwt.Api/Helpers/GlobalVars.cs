@@ -37,4 +37,14 @@ public static class GlobalVars
     /// Name of the HttpContext item for storing the user ID.
     /// </summary>
     public const string HTTP_CTX_ITEM_USERID = "UserId";
+
+    /// <summary>
+    /// Name of the Environment variable for enabling Swagger UI.
+    /// </summary>
+    public const string ENV_ENABLE_SWAGGER_UI = "ENABLE_SWAGGER_UI";
+
+    /// <summary>
+    /// Name of the Environment variable for initializing the database.
+    /// </summary>
+    public const string ENV_INIT_DB = "INIT_DB";
 }

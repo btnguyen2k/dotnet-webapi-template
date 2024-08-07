@@ -35,6 +35,12 @@ COPY ${BASENAME}.Api/data ./data
 # See https://docs.docker.com/go/dockerfile-user-best-practices/
 USER appuser
 
+# Enable Swagger UI
+ENV ENABLE_SWAGGER_UI=true
+
+# Initialize the database
+ENV INIT_DB=true
+
 # # Default port for dotnet application
 EXPOSE 8080
 

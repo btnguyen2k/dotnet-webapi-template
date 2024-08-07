@@ -45,7 +45,14 @@ RUN adduser \
     --no-create-home \
     --uid "$UID" \
     appuser
+RUN chown -R appuser:appuser /app
 USER appuser
+
+# Enable Swagger UI
+ENV ENABLE_SWAGGER_UI=true
+
+# Initialize the database
+ENV INIT_DB=true
 
 # Default port for dotnet application
 EXPOSE 8080

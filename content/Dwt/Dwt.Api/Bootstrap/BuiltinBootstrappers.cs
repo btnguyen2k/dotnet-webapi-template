@@ -3,7 +3,6 @@ using Dwt.Api.Middleware;
 using Dwt.Api.Models;
 using Dwt.Shared.Models;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Reflection;
@@ -33,11 +32,13 @@ public class ApplicationBootstrapper : IApplicationBootstrapper
         services.AddSingleton<IUserRepository, StaticConfigUserRepository>();
         logger.LogInformation("StaticConfigUserRepository --> IUserRepository.");
 
+        var tryParse = Boolean.TryParse(Environment.GetEnvironmentVariable(GlobalVars.ENV_INIT_DB), out var initDb);
+
         services.AddSingleton<ITodoRepository, TodoDbContextRepository>(factory =>
         {
             var options = new DbContextOptionsBuilder<TodoDbContextRepository>().UseInMemoryDatabase("TodoList").Options;
             var dbContext = new TodoDbContextRepository(options);
-            if (builder.Environment.IsDevelopment())
+            if (builder.Environment.IsDevelopment() || (tryParse && initDb))
             {
                 logger.LogInformation("EnsureCreated() is called for TodoDbContextRepository.");
                 dbContext.Database.EnsureCreated();
@@ -51,7 +52,7 @@ public class ApplicationBootstrapper : IApplicationBootstrapper
             var connStr = builder.Configuration.GetConnectionString("NotesDbContext");
             var options = new DbContextOptionsBuilder<NoteDbContextRepository>().UseSqlite(connStr).Options;
             var dbContext = new NoteDbContextRepository(options);
-            if (builder.Environment.IsDevelopment())
+            if (builder.Environment.IsDevelopment() || (tryParse && initDb))
             {
                 logger.LogInformation("EnsureCreated() is called for NoteDbContextRepository.");
                 dbContext.Database.EnsureCreated();
@@ -140,10 +141,12 @@ public class ApplicationBootstrapper : IApplicationBootstrapper
 
     protected void ConfigureSwagger(WebApplication app)
     {
-        if (app.Environment.IsDevelopment())
+        var tryParse = Boolean.TryParse(Environment.GetEnvironmentVariable(GlobalVars.ENV_ENABLE_SWAGGER_UI), out var enableSwaggerUi);
+        if (app.Environment.IsDevelopment() || (tryParse && enableSwaggerUi))
         {
             app.UseSwagger();
             app.UseSwaggerUI();
+            logger.LogInformation("Swagger UI enabled at /swagger");
         }
     }
 

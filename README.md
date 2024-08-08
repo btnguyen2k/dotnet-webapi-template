@@ -1,4 +1,4 @@
-# dotnet-webapi-template
+# .NET WebAPI Template
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Actions Status](https://github.com/btnguyen2k/dotnet-webapi-template/workflows/ci/badge.svg)](https://github.com/btnguyen2k/dotnet-webapi-template/actions)
@@ -9,36 +9,30 @@ Template to quickly spin up a .NET Web API project.
 ## Features
 
 - Skeleton to quickly build RESTful APIs with .NET:
-  - Supports authentication and authorization using JWT.
-  - Utilizes JSON for input and output.
+  - Suthentication and authorization using JWT.
+  - JSON for input and output.
   - Included sample Database access using [Entity Framework](https://learn.microsoft.com/en-us/ef/core/).
 - Sample files included: README, LICENSE, RELEASE-NOTES, and `.gitignore`.
 - GitHub Actions integrated:
   - `dependabot.yaml`, `automerge-dependabot.yaml`: Automatically update dependencies and merge PRs from Dependabot.
-  - `ci.yaml`: Automatically run tests and generate code coverage reports.
+  - `ci.yaml`: Automatically build and run tests with code coverage reports.
   - `release.yaml`: Automatically create new releases.
   - `codeql.yaml`: Automatically run CodeQL analysis.
+- Sample Dockerfile files to package the application as Docker images for Linux and Windows.
 
 ## Usage
 
-**Create new project from this template**
-
-(preferred method) Utilizing either the [Use this template](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template#creating-a-repository-from-a-template) feature or the `gh` command line tool:
+Install (or update) the package from NuGet to make the template available:
 
 ```sh
-$ gh repo create my-new-project --template btnguyen2k/dotnet-webapi-template
+$ dotnet new install Ddth.WebApiTemplate
 ```
 
-(less preferred method) Or simply clone/fork this repository.
+After the package is installed, you can create a new project using the template:
 
-**(optional) Rename the project/namespace**
-
-Use the `Rename` feature from Visual Studio (or other IDEs that you are using) to rename the project/namespace to match your brand.
-
-**Update sample files**
-
-`LICENSE.tpl.md`, `README.tpl.md` and `RELEASE-NOTES.tpl.md` are sample license, readme and release-notes files. Update them to
-reflect your application's name, license and functionality; then rename them to `LICENSE.md`, `README.md` and `RELEASE-NOTES.md`.
+```sh
+$ dotnet new dwt -n MyApp
+```
 
 **Happy coding!**
 

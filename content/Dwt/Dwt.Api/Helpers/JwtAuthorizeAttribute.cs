@@ -45,7 +45,7 @@ public class JwtAuthorizeAttribute : Attribute, IAuthorizationFilter
 
     public void OnAuthorization(AuthorizationFilterContext context)
     {
-        var token = context.HttpContext.Request.Headers["Authorization"].FirstOrDefault()?.Split(" ").Last();
+        var token = context.HttpContext.Request.Headers.Authorization.FirstOrDefault()?.Split(" ").Last();
         if (token != null)
         {
             VerifyToken(context, token);
@@ -73,6 +73,7 @@ public class JwtAuthorizeAttribute : Attribute, IAuthorizationFilter
             var claimRoles = principal.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
             if (claimRoles != null && _rolesList != null && _rolesList.Length > 0)
             {
+
                 var userRoles = User.RoleStrToArr(claimRoles);
                 if (!_rolesList.Any(r => userRoles.Contains(r)))
                 {

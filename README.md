@@ -38,10 +38,12 @@ The above command will create a new solution named `MyApp` the current directory
 
 **Happy coding!**
 
+🌟 If you find this project useful, please star it. 🌟
+
 ## License
 
 This template is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
 
 ## Contributing & Support
 
-Feel free to create [pull requests](https://github.com/btnguyen2k/dotnet-webapi-template/pulls) or [issues](https://github.com/btnguyen2k/dotnet-webapi-template/issues) to report bugs or suggest new features. If you find this project useful, please star it.
+Feel free to create [pull requests](https://github.com/btnguyen2k/dotnet-webapi-template/pulls) or [issues](https://github.com/btnguyen2k/dotnet-webapi-template/issues) to report bugs or suggest new features.

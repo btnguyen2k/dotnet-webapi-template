@@ -2,7 +2,6 @@
 using Dwt.Api.Services;
 using Dwt.Shared.Models;
 using System.Security.Claims;
-using System.Text.Json;
 
 namespace Dwt.Api.Bootstrap;
 
@@ -32,7 +31,7 @@ public class SampleAuthenticatorAsyncBootstrapper(IServiceProvider serviceProvid
             return JwtRepository.GenerateToken(expiry, new ClaimsIdentity(
             [
                 new Claim(ClaimTypes.Upn, user.Id),
-                new Claim(ClaimTypes.Role, JsonSerializer.Serialize(user.Roles)),
+                new Claim(ClaimTypes.Role, user.Role),
                 // Add more claims as needed
             ]));
         }

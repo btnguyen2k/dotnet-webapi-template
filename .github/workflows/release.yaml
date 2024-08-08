@@ -10,6 +10,7 @@ env:
   BRANCH_TO_RELEASE: 'release'
   TAG_PREFIX: 'v'
   FILE_CHANGELOG: 'RELEASE-NOTES.md'
+  DOTNET_VERSION: '8.x'
 
 jobs:
   CallCI:
@@ -57,13 +58,18 @@ jobs:
       RELEASE_NOTES: ${{ needs.ReleaseDryRun.outputs.RELEASE_NOTES }}
     steps:
       - uses: actions/checkout@v4
-      - name: Update module meta
+      - name: Setup dotnet ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Update metadata
         run: |
           RESULT='${{ needs.ReleaseDryRun.outputs.RESULT }}'
           VERSION='${{ needs.ReleaseDryRun.outputs.VERSION }}'
           RELEASE_NOTES='${{ needs.ReleaseDryRun.outputs.RELEASE_NOTES }}'
+          NUGET_PROJECT_FILE='Ddth.Templates.WebApi.csproj'
 
-          echo "🕘 Updating module meta..."
+          echo "🕘 Updating metadata..."
           echo "   - RESULT: ${RESULT}"
           echo "   - VERSION: ${VERSION}"
           echo "   - RELEASE_NOTES: ${RELEASE_NOTES}"
@@ -80,10 +86,22 @@ jobs:
             echo ========== update .md files ==========
             sed -i -E "s/<<VERSION>>/v${VERSION}/" ./*.md
 
+            echo ========== update ${NUGET_PROJECT_FILE} ==========
+            cp ${NUGET_PROJECT_FILE} ${NUGET_PROJECT_FILE}.bak
+            sed -i -E "s/<<VERSION>>/${VERSION}/" ${NUGET_PROJECT_FILE}
+            echo ========== content of ${NUGET_PROJECT_FILE} ==========
+            cat ${NUGET_PROJECT_FILE}
+
+            echo ========== Build and Publish NuGet package ==========
+            dotnet pack
+            dotnet nuget push *.nupkg --source "nuget.org" --api-key ${{ secrets.NUGET_API_KEY }}
+
+            mv -f ${NUGET_PROJECT_FILE}.bak ${NUGET_PROJECT_FILE}
+
             echo ========== commit updates ==========
             git config --global user.email "<>"
             git config --global user.name "CI Build"
-            git commit -am "Update ${FILE_CHANGELOG} and *.md files for new version ${VERSION}"
+            git commit -am "Update metadata for new version ${VERSION}"
             git push origin ${BRANCH_TO_RELEASE}
 
             echo ========== tag ==========

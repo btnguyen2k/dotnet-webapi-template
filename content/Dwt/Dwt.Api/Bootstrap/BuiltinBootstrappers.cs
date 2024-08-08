@@ -3,6 +3,7 @@ using Dwt.Api.Middleware;
 using Dwt.Api.Models;
 using Dwt.Shared.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Reflection;
@@ -34,30 +35,30 @@ public class ApplicationBootstrapper : IApplicationBootstrapper
 
         var tryParse = Boolean.TryParse(Environment.GetEnvironmentVariable(GlobalVars.ENV_INIT_DB), out var initDb);
 
-        services.AddSingleton<ITodoRepository, TodoDbContextRepository>(factory =>
+        services.AddDbContext<ITodoRepository, TodoDbContextRepository>(options =>
         {
-            var options = new DbContextOptionsBuilder<TodoDbContextRepository>().UseInMemoryDatabase("TodoList").Options;
-            var dbContext = new TodoDbContextRepository(options);
+            options.UseInMemoryDatabase("TodoList");
             if (builder.Environment.IsDevelopment() || (tryParse && initDb))
             {
-                logger.LogInformation("EnsureCreated() is called for TodoDbContextRepository.");
+                DbContextOptionsBuilder<TodoDbContextRepository> optBuilder = (DbContextOptionsBuilder<TodoDbContextRepository>)options;
+                using var dbContext = new TodoDbContextRepository(optBuilder.Options);
                 dbContext.Database.EnsureCreated();
+                logger.LogInformation("EnsureCreated() is called for TodoDbContextRepository.");
             }
-            return dbContext;
         });
         logger.LogInformation("TodoDbContextRepository --> ITodoRepository.");
 
-        services.AddSingleton<INoteRepository, NoteDbContextRepository>(factory =>
+        services.AddDbContext<INoteRepository, NoteDbContextRepository>(options =>
         {
             var connStr = builder.Configuration.GetConnectionString("NotesDbContext");
-            var options = new DbContextOptionsBuilder<NoteDbContextRepository>().UseSqlite(connStr).Options;
-            var dbContext = new NoteDbContextRepository(options);
+            options.UseSqlite(connStr);
             if (builder.Environment.IsDevelopment() || (tryParse && initDb))
             {
-                logger.LogInformation("EnsureCreated() is called for NoteDbContextRepository.");
+                DbContextOptionsBuilder<NoteDbContextRepository> optBuilder = (DbContextOptionsBuilder<NoteDbContextRepository>)options;
+                using var dbContext = new NoteDbContextRepository(optBuilder.Options);
                 dbContext.Database.EnsureCreated();
+                logger.LogInformation("EnsureCreated() is called for NoteDbContextRepository.");
             }
-            return dbContext;
         });
         logger.LogInformation("NoteDbContextRepository --> INoteRepository.");
     }

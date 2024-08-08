@@ -131,6 +131,7 @@ public class ApplicationBootstrapper : IApplicationBootstrapper
     public WebApplication CreateApplication(WebApplicationBuilder builder)
     {
         logger.LogInformation("Creating WebApplication instance...");
+        builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
         ConfigureDbContext(builder);
         ConfigureControllers(builder);
         var app = builder.Build();
@@ -152,7 +153,7 @@ public class ApplicationBootstrapper : IApplicationBootstrapper
 
     protected void ConfigureMiddlewares(WebApplication app)
     {
-        app.UseMiddleware<ErrorHandlerMiddleware>()
+        app.UseExceptionHandler(o => { }) //workaround for https://github.com/dotnet/aspnetcore/issues/51888
             .UseMiddleware<JwtMiddleware>();
     }
 

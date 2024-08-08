@@ -46,4 +46,6 @@ This template is licensed under the MIT License - see the [LICENSE.md](LICENSE.m
 
 ## Contributing & Support
 
-Feel free to create [pull requests](https://github.com/btnguyen2k/dotnet-webapi-template/pulls) or [issues](https://github.com/btnguyen2k/dotnet-webapi-template/issues) to report bugs or suggest new features.
+Feel free to create [pull requests](https://github.com/btnguyen2k/dotnet-webapi-template/compare/contrib_wait_for_merge...) or [issues](https://github.com/btnguyen2k/dotnet-webapi-template/issues) to report bugs or suggest new features.
+
+> Please create PRs against the `contrib_wait_for_merge` branch.

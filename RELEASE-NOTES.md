@@ -1,5 +1,13 @@
 # .NET WebAPI Template release notes
 
+## 2024-08-08 - v0.2.1
+
+### Fixed/Improvement
+
+- Fix: register repositories with AddDbContext/AddDbContextPool.
+- Fix: user roles mismatched causing JwtAuthorizeAttribute failed to validate user roles.
+- Fix: use services.AddExceptionHandler() to handle exception globally.
+
 ## 2024-08-08 - v0.2.0
 
 ### Added/Refactoring

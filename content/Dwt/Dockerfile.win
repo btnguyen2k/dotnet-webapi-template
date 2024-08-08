@@ -1,0 +1,48 @@
+
+# syntax=docker/dockerfile:1
+
+ARG DOTNETVERSION=8.0
+ARG BASEIMAGE=nanoserver-ltsc2022
+
+# Version of the Windows image must match the host OS version (e.g. both must be 2022).
+FROM mcr.microsoft.com/dotnet/sdk:$DOTNETVERSION-$BASEIMAGE AS build
+
+COPY . /source
+WORKDIR /source
+
+ARG TARGETARCH
+ARG BUILDPLATFORM
+ARG TARGETPLATFORM
+
+# Build the application.
+RUN echo Running on %BUILDPLATFORM%, building for %TARGETPLATFORM% (%TARGETARCH%)
+RUN dotnet restore
+RUN dotnet publish --no-restore --property:PublishDir=/app
+
+################################################################################
+
+FROM mcr.microsoft.com/dotnet/aspnet:$DOTNETVERSION-$BASEIMAGE AS final
+WORKDIR /app
+
+# Change this to match the name of your application.
+ARG BASENAME="Dwt"
+
+COPY --from=build /app ./
+COPY ${BASENAME}.Api/config ./config
+COPY ${BASENAME}.Api/data ./data
+
+# Create a non-privileged user that the app will run under.
+# See https://docs.docker.com/go/dockerfile-user-best-practices/
+USER appuser
+
+# Enable Swagger UI
+ENV ENABLE_SWAGGER_UI=true
+
+# Initialize the database
+ENV INIT_DB=true
+
+# # Default port for dotnet application
+EXPOSE 8080
+
+# Change "Dwt.Api.dll" to match the name of your application.
+ENTRYPOINT ["dotnet", "Dwt.Api.dll"]

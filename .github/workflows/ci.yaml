@@ -134,7 +134,7 @@ jobs:
         run: |
           mkdir temp && \
           cd temp && \
-          dotnet new dwt -a MyApp
+          dotnet new dwt -n MyApp
       - name: Install dependencies
         run: cd temp/ && dotnet restore
       - name: Build

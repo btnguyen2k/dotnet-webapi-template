@@ -48,7 +48,7 @@ public class ApplicationBootstrapper : IApplicationBootstrapper
         });
         logger.LogInformation("TodoDbContextRepository --> ITodoRepository.");
 
-        services.AddDbContext<INoteRepository, NoteDbContextRepository>(options =>
+        services.AddDbContextPool<INoteRepository, NoteDbContextRepository>(options =>
         {
             var connStr = builder.Configuration.GetConnectionString("NotesDbContext");
             options.UseSqlite(connStr);

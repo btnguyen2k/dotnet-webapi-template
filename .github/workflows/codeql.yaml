@@ -42,6 +42,6 @@ jobs:
         run: |
           sed -i -E "s/<<VERSION>>/0.0.0/" Ddth.Templates.WebApi.csproj
           dotnet build
-          cd content/consoleasync/ && dotnet build
+          cd content/Dwt/ && dotnet build
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3

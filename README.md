@@ -25,7 +25,7 @@ Template to quickly spin up a .NET Web API project.
 Install (or update) the package from NuGet to make the template available:
 
 ```sh
-$ dotnet new install Ddth.WebApiTemplate
+$ dotnet new install Ddth.Templates.WebApi
 ```
 
 After the package is installed, you can create a new project using the template:
@@ -33,6 +33,8 @@ After the package is installed, you can create a new project using the template:
 ```sh
 $ dotnet new dwt -n MyApp
 ```
+
+The above command will create a new solution named `MyApp` the current directory.
 
 **Happy coding!**
 

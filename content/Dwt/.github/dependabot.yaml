@@ -10,13 +10,13 @@ updates:
       day: "sunday"
 
   - package-ecosystem: "nuget"
-    directory: "/content/Dwt/Dwt.Shared"
+    directory: "/Dwt.Shared"
     schedule:
       interval: "weekly"
       day: "saturday"
 
   - package-ecosystem: "nuget"
-    directory: "/content/Dwt/Dwt.Api"
+    directory: "/Dwt.Api"
     schedule:
       interval: "weekly"
       day: "saturday"

@@ -1,0 +1,6 @@
+@Dwt.Api_HostAddress = http://localhost:5263
+
+GET {{dwt_HostAddress}}/info
+Accept: application/json
+
+###

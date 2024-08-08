@@ -1,6 +1,6 @@
 # This file has been cleaned up post-releasing version 0.2.0.
 # Generate its content quickly using the following command:
 #   git log origin..HEAD | grep "^\s" > .semrelease/this_release
-- Fix: register repositories with `AddDbContext`/`AddDbContextPool`.
-- Fix: user's roles mismatched causing `JwtAuthorizeAttribute` failed to validate user's roles.
-- Fix: use `services.AddExceptionHandler()` to handle exception globally.
+- Fix: register repositories with AddDbContext/AddDbContextPool.
+- Fix: user roles mismatched causing JwtAuthorizeAttribute failed to validate user roles.
+- Fix: use services.AddExceptionHandler() to handle exception globally.

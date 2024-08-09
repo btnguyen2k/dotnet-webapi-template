@@ -11,6 +11,7 @@ env:
   TAG_PREFIX: 'v'
   FILE_CHANGELOG: 'RELEASE-NOTES.md'
   DOTNET_VERSION: '8.x'
+  NUGET_PROJECT_FILE: 'Ddth.Templates.WebApi.csproj'
 
 jobs:
   CallCI:
@@ -62,7 +63,32 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
-      - name: Update metadata
+      - name: Update NuGet metadata
+        uses: actions/github-script@v7
+        env:
+          RESULT: ${{ needs.ReleaseDryRun.outputs.RESULT }}
+          VERSION: ${{ needs.ReleaseDryRun.outputs.VERSION }}
+          RELEASE_NOTES: ${{ needs.ReleaseDryRun.outputs.RELEASE_NOTES }}
+        with:
+            script: |
+              console.log('🕘 Updating metadata...')
+              console.log(`   🐛 [DEBUG] RESULT: ${process.env['RESULT']}`);
+              if (process.env['RESULT'] != 'SUCCESS') {
+                console.log('❎ SKIPPED.');
+                return;
+              }
+              console.log(`   🐛 [DEBUG] RELEASE VERSION: ${process.env['VERSION']}`);
+              console.log(`   🐛 [DEBUG] RELEASE NOTES: ${process.env['RELEASE_NOTES']}`);
+
+              var releaseNotes = process.env['RELEASE_NOTES'];
+              releaseNotes = releaseNotes.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+              var fs = require('fs');
+              var content = fs.readFileSync('${{ env.NUGET_PROJECT_FILE }}', 'utf8');
+              content = content.replace(/<<VERSION>>/g, process.env['VERSION']);
+              content = content.replace(/<<RELEASE-NOTES>>/g, releaseNotes);
+              content = content.replace(/<<RELEASE_NOTES>>/g, releaseNotes);
+              fs.writeFileSync('${{ env.NUGET_PROJECT_FILE }}.final', content);
+      - name: Update other metadata
         run: |
           RESULT='${{ needs.ReleaseDryRun.outputs.RESULT }}'
           VERSION='${{ needs.ReleaseDryRun.outputs.VERSION }}'
@@ -70,11 +96,12 @@ jobs:
           NUGET_PROJECT_FILE='Ddth.Templates.WebApi.csproj'
 
           echo "🕘 Updating metadata..."
-          echo "   - RESULT: ${RESULT}"
-          echo "   - VERSION: ${VERSION}"
-          echo "   - RELEASE_NOTES: ${RELEASE_NOTES}"
+          echo "   🐛 [DEBUG] RESULT: ${RESULT}"
 
           if [ "${RESULT}" == "SUCCESS" ]; then
+            echo "   🐛 [DEBUG] VERSION: ${VERSION}"
+            echo "   🐛 [DEBUG] RELEASE_NOTES: ${RELEASE_NOTES}"
+
             DATE=`date +%Y-%m-%d`
             head -1 ${FILE_CHANGELOG} > .temp.md
             echo -e "\n## ${DATE} - v${VERSION}\n\n${RELEASE_NOTES}" >> .temp.md
@@ -86,17 +113,13 @@ jobs:
             echo ========== update .md files ==========
             sed -i -E "s/<<VERSION>>/v${VERSION}/" ./*.md
 
-            echo ========== update ${NUGET_PROJECT_FILE} ==========
-            cp ${NUGET_PROJECT_FILE} ${NUGET_PROJECT_FILE}.bak
-            sed -i -E "s/<<VERSION>>/${VERSION}/" ${NUGET_PROJECT_FILE}
-            echo ========== content of ${NUGET_PROJECT_FILE} ==========
-            cat ${NUGET_PROJECT_FILE}
-
             echo ========== Build and Publish NuGet package ==========
+            cp -f ${{ env.NUGET_PROJECT_FILE }} ${{ env.NUGET_PROJECT_FILE }}.bak
+            mv -f ${{ env.NUGET_PROJECT_FILE }}.final ${{ env.NUGET_PROJECT_FILE }}
+            cat ${{ env.NUGET_PROJECT_FILE }}
             dotnet pack
             dotnet nuget push *.nupkg --source "nuget.org" --api-key ${{ secrets.NUGET_API_KEY }}
-
-            mv -f ${NUGET_PROJECT_FILE}.bak ${NUGET_PROJECT_FILE}
+            mv -f ${{ env.NUGET_PROJECT_FILE }}.bak ${{ env.NUGET_PROJECT_FILE }}
 
             echo ========== commit updates ==========
             git config --global user.email "<>"

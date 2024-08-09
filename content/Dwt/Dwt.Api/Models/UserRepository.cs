@@ -39,4 +39,29 @@ public class StaticConfigUserRepository(IConfiguration config) : IUserRepository
     {
         throw new NotImplementedException();
     }
+
+    public ValueTask<User> CreateAsync(User t)
+    {
+	    throw new NotImplementedException();
+    }
+
+    public ValueTask<User?> GetByIDAsync(string id)
+    {
+	    throw new NotImplementedException();
+    }
+
+    public IAsyncEnumerable<User> GetAllAsync()
+    {
+	    throw new NotImplementedException();
+    }
+
+    public ValueTask<bool> UpdateAsync(User t)
+    {
+	    throw new NotImplementedException();
+    }
+
+    public ValueTask<bool> DeleteAsync(User t)
+    {
+	    throw new NotImplementedException();
+    }
 }

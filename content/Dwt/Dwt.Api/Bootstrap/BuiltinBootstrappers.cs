@@ -168,15 +168,14 @@ public class ApplicationBootstrapper : IApplicationBootstrapper
         logger.LogInformation("Start bootstrapping services...");
         var bootstrapperNames = app.Configuration.GetSection("Bootstrap:Components").Get<List<string>>() ?? [];
         var asyncBootstrapTasks = new List<Task>();
-#pragma warning disable CA2254 // Template should be a static expression
         foreach (var bootstrapperName in bootstrapperNames)
         {
-            app.Logger.LogInformation($"Loading bootstrapper: {bootstrapperName}...");
+            app.Logger.LogInformation("Loading bootstrapper: {bootstrapperName}...", bootstrapperName);
 
             var bootstrapperType = Type.GetType(bootstrapperName);
             if (bootstrapperType == null)
             {
-                app.Logger.LogWarning($"Bootstrapper not found: {bootstrapperName}");
+                app.Logger.LogWarning("Bootstrapper not found: {bootstrapperName}", bootstrapperName);
                 continue;
             }
 
@@ -185,7 +184,7 @@ public class ApplicationBootstrapper : IApplicationBootstrapper
                 var bootstrapper = ReflectionHelper.CreateInstance<IBootstrapper>(app.Services, bootstrapperType);
                 if (bootstrapper == null)
                 {
-                    app.Logger.LogWarning($"Bootstrapper not found: {bootstrapperName}");
+                    app.Logger.LogWarning("Bootstrapper not found: {bootstrapperName}", bootstrapperName);
                     continue;
                 }
                 bootstrapper.Bootstrap(app);
@@ -195,17 +194,16 @@ public class ApplicationBootstrapper : IApplicationBootstrapper
                 var bootstrapper = ReflectionHelper.CreateInstance<IAsyncBootstrapper>(app.Services, bootstrapperType);
                 if (bootstrapper == null)
                 {
-                    app.Logger.LogWarning($"Bootstrapper not found: {bootstrapperName}");
+                    app.Logger.LogWarning("Bootstrapper not found: {bootstrapperName}", bootstrapperName);
                     continue;
                 }
                 asyncBootstrapTasks.Add(bootstrapper.BootstrapAsync(app));
             }
             else
             {
-                app.Logger.LogError($"Bootstrapper {bootstrapperName} does not implement IBootstrapper or IAsyncBootstrapper");
+                app.Logger.LogError("Bootstrapper {bootstrapperName} does not implement IBootstrapper or IAsyncBootstrapper", bootstrapperName);
             }
         }
-#pragma warning restore CA2254 // Template should be a static expression
         return asyncBootstrapTasks;
     }
 
@@ -286,8 +284,9 @@ public class JwtBootstrapper(ILogger<JwtBootstrapper> logger, IConfiguration con
         JwtRepository.DefaultExpirationSeconds = int.Parse(config["Jwt:Expiration"] ?? "3600");
 
         var key = config["Jwt:Key"]?.Trim() ?? "";
-        if (key == "")
+        if (string.IsNullOrEmpty(key))
         {
+			// JWT signing key is not defined, use RSA private key to sign JWT
             if (GlobalVars.RSAPrivKey == null)
             {
                 throw new NullReferenceException("RSA private key is null.");
@@ -297,6 +296,7 @@ public class JwtBootstrapper(ILogger<JwtBootstrapper> logger, IConfiguration con
         }
         else
         {
+			// JWT signing key is defined, use it to sign JWT
             JwtRepository.Key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
             JwtRepository.Algorithm = SecurityAlgorithms.HmacSha256;
         }

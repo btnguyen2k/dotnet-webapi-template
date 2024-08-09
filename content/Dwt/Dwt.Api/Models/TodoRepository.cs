@@ -10,5 +10,6 @@ namespace Dwt.Api.Models;
 public sealed class TodoDbContextRepository(DbContextOptions<TodoDbContextRepository> options)
 	: GenericRepository<TodoDbContextRepository, TodoItem>(options), ITodoRepository
 {
+	/// <inheritdoc/>
 	public IAsyncEnumerable<TodoItem> GetMyTodos(User user) => DbSet.Where(x => x.UserId == user.Id).AsAsyncEnumerable();
 }

@@ -49,7 +49,7 @@ jobs:
   Release:
     runs-on: ubuntu-latest
     if: |
-      github.event.pull_request.merged == true
+      (github.event.pull_request.merged == true) && (needs.ReleaseDryRun.outputs.RESULT == 'SUCCESS')
     needs: [ ReleaseDryRun ]
     permissions:
       contents: write # to be able to publish a GitHub release
@@ -70,109 +70,86 @@ jobs:
           VERSION: ${{ needs.ReleaseDryRun.outputs.VERSION }}
           RELEASE_NOTES: ${{ needs.ReleaseDryRun.outputs.RELEASE_NOTES }}
         with:
-            script: |
-              console.log('🕘 Updating metadata...')
-              console.log(`   🐛 [DEBUG] RESULT: ${process.env['RESULT']}`);
-              if (process.env['RESULT'] != 'SUCCESS') {
-                console.log('❎ SKIPPED.');
-                return;
-              }
-              console.log(`   🐛 [DEBUG] RELEASE VERSION: ${process.env['VERSION']}`);
-              console.log(`   🐛 [DEBUG] RELEASE NOTES: ${process.env['RELEASE_NOTES']}`);
+          script: |
+            console.log('🕘 Updating metadata...')
+            console.log(`   🐛 [DEBUG] RESULT: ${process.env['RESULT']}`);
+            console.log(`   🐛 [DEBUG] RELEASE VERSION: ${process.env['VERSION']}`);
+            console.log(`   🐛 [DEBUG] RELEASE NOTES: ${process.env['RELEASE_NOTES']}`);
 
-              var releaseNotes = process.env['RELEASE_NOTES'];
-              releaseNotes = releaseNotes.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-              var fs = require('fs');
-              var content = fs.readFileSync('${{ env.NUGET_PROJECT_FILE }}', 'utf8');
-              content = content.replace(/<<VERSION>>/g, process.env['VERSION']);
-              content = content.replace(/<<RELEASE-NOTES>>/g, releaseNotes);
-              content = content.replace(/<<RELEASE_NOTES>>/g, releaseNotes);
-              fs.writeFileSync('${{ env.NUGET_PROJECT_FILE }}.final', content);
+            var releaseNotes = process.env['RELEASE_NOTES'];
+            releaseNotes = releaseNotes.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            var fs = require('fs');
+            var content = fs.readFileSync('${{ env.NUGET_PROJECT_FILE }}', 'utf8');
+            content = content.replace(/<<VERSION>>/g, process.env['VERSION']);
+            content = content.replace(/<<RELEASE-NOTES>>/g, releaseNotes);
+            content = content.replace(/<<RELEASE_NOTES>>/g, releaseNotes);
+            fs.writeFileSync('${{ env.NUGET_PROJECT_FILE }}.final', content);
       - name: Update other metadata
         run: |
           RESULT='${{ needs.ReleaseDryRun.outputs.RESULT }}'
           VERSION='${{ needs.ReleaseDryRun.outputs.VERSION }}'
           RELEASE_NOTES='${{ needs.ReleaseDryRun.outputs.RELEASE_NOTES }}'
-          NUGET_PROJECT_FILE='Ddth.Templates.WebApi.csproj'
 
           echo "🕘 Updating metadata..."
-          echo "   🐛 [DEBUG] RESULT: ${RESULT}"
 
-          if [ "${RESULT}" == "SUCCESS" ]; then
-            echo "   🐛 [DEBUG] VERSION: ${VERSION}"
-            echo "   🐛 [DEBUG] RELEASE_NOTES: ${RELEASE_NOTES}"
+          DATE=`date +%Y-%m-%d`
+          head -1 ${FILE_CHANGELOG} > .temp.md
+          echo -e "\n## ${DATE} - v${VERSION}\n\n${RELEASE_NOTES}" >> .temp.md
+          tail -n +2 ${FILE_CHANGELOG} >> .temp.md
+          mv -f .temp.md ${FILE_CHANGELOG}
+          echo ========== content of ${FILE_CHANGELOG} ==========
+          cat ${FILE_CHANGELOG}
 
-            DATE=`date +%Y-%m-%d`
-            head -1 ${FILE_CHANGELOG} > .temp.md
-            echo -e "\n## ${DATE} - v${VERSION}\n\n${RELEASE_NOTES}" >> .temp.md
-            tail -n +2 ${FILE_CHANGELOG} >> .temp.md
-            mv -f .temp.md ${FILE_CHANGELOG}
-            echo ========== content of ${FILE_CHANGELOG} ==========
-            cat ${FILE_CHANGELOG}
+          echo ========== update .md files ==========
+          sed -i -E "s/<<VERSION>>/v${VERSION}/" ./*.md
 
-            echo ========== update .md files ==========
-            sed -i -E "s/<<VERSION>>/v${VERSION}/" ./*.md
+          echo ========== Build and Publish NuGet package ==========
+          cp -f ${{ env.NUGET_PROJECT_FILE }} ${{ env.NUGET_PROJECT_FILE }}.bak
+          mv -f ${{ env.NUGET_PROJECT_FILE }}.final ${{ env.NUGET_PROJECT_FILE }}
+          cat ${{ env.NUGET_PROJECT_FILE }}
+          dotnet pack
+          dotnet nuget push *.nupkg --source "nuget.org" --api-key ${{ secrets.NUGET_API_KEY }}
+          mv -f ${{ env.NUGET_PROJECT_FILE }}.bak ${{ env.NUGET_PROJECT_FILE }}
 
-            echo ========== Build and Publish NuGet package ==========
-            cp -f ${{ env.NUGET_PROJECT_FILE }} ${{ env.NUGET_PROJECT_FILE }}.bak
-            mv -f ${{ env.NUGET_PROJECT_FILE }}.final ${{ env.NUGET_PROJECT_FILE }}
-            cat ${{ env.NUGET_PROJECT_FILE }}
-            dotnet pack
-            dotnet nuget push *.nupkg --source "nuget.org" --api-key ${{ secrets.NUGET_API_KEY }}
-            mv -f ${{ env.NUGET_PROJECT_FILE }}.bak ${{ env.NUGET_PROJECT_FILE }}
+          echo ========== commit updates ==========
+          git config --global user.email "<>"
+          git config --global user.name "CI Build"
+          git commit -am "Update metadata for new version ${VERSION}"
+          git push origin ${BRANCH_TO_RELEASE}
 
-            echo ========== commit updates ==========
-            git config --global user.email "<>"
-            git config --global user.name "CI Build"
-            git commit -am "Update metadata for new version ${VERSION}"
-            git push origin ${BRANCH_TO_RELEASE}
-
-            echo ========== tag ==========
-            git tag -f -a "${TAG_PREFIX}${VERSION}" -m "Release ${TAG_PREFIX}/v${VERSION}"
-            git push origin "${TAG_PREFIX}${VERSION}" -f
-            echo "✅ Done."
-          else
-            echo "❎ SKIPPED."
-          fi
+          echo ========== tag ==========
+          git tag -f -a "${TAG_PREFIX}${VERSION}" -m "Release ${TAG_PREFIX}/v${VERSION}"
+          git push origin "${TAG_PREFIX}${VERSION}" -f
+          echo "✅ Done."
       - name: Create release
         uses: actions/github-script@v7
         env:
-          RESULT: ${{ needs.ReleaseDryRun.outputs.RESULT }}
           VERSION: ${{ needs.ReleaseDryRun.outputs.VERSION }}
           RELEASE_NOTES: ${{ needs.ReleaseDryRun.outputs.RELEASE_NOTES }}
         with:
-            script: |
-              if (process.env['RESULT'] != 'SUCCESS') {
-                console.log('❎ SKIPPED.');
-                return;
-              }
-              const {data: release} = await github.rest.repos.createRelease({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                tag_name: process.env['TAG_PREFIX'] + process.env['VERSION'],
-                name: process.env['TAG_PREFIX'] + process.env['VERSION'],
-                body: process.env['RELEASE_NOTES'],
-                draft: false,
-                prerelease: false,
-              });
-              console.log('✅ Created release: ', release);
+          script: |
+            const {data: release} = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: process.env['TAG_PREFIX'] + process.env['VERSION'],
+              name: process.env['TAG_PREFIX'] + process.env['VERSION'],
+              body: process.env['RELEASE_NOTES'],
+              draft: false,
+              prerelease: false,
+            });
+            console.log('✅ Created release: ', release);
       - name: Cleanup file .semrelease/this_release
         run: |
-          RESULT='${{ needs.ReleaseDryRun.outputs.RESULT }}'
-          if [ "${RESULT}" == "SUCCESS" ]; then
-            VERSION='${{ needs.ReleaseDryRun.outputs.VERSION }}'
-            echo "🕘 Cleaning up file .semrelease/this_release..."
-            echo "# This file has been cleaned up post-releasing version ${VERSION}." > .semrelease/this_release
-            echo "# Generate its content quickly using the following command:" >> .semrelease/this_release
-            echo "#   git log origin..HEAD | grep \"^\s\" > .semrelease/this_release" >> .semrelease/this_release
-            git config --global user.email "<>"
-            git config --global user.name "CI Build"
-            git commit -am "Cleanup file .semrelease/this_release post-releasing version ${VERSION}"
-            git push -f
-            echo "✅ Done."
-          else
-            echo "❎ SKIPPED."
-          fi
+          VERSION='${{ needs.ReleaseDryRun.outputs.VERSION }}'
+          echo "🕘 Cleaning up file .semrelease/this_release..."
+          echo "# This file has been cleaned up post-releasing version ${VERSION}." > .semrelease/this_release
+          echo "# Generate its content quickly using the following command:" >> .semrelease/this_release
+          echo "#   git log origin..HEAD | grep \"^\s\" > .semrelease/this_release" >> .semrelease/this_release
+          git config --global user.email "<>"
+          git config --global user.name "CI Build"
+          git commit -am "Cleanup file .semrelease/this_release post-releasing version ${VERSION}"
+          git push -f
+          echo "✅ Done."
 
   MergeToMain:
     runs-on: ubuntu-latest
@@ -182,18 +159,14 @@ jobs:
     steps:
       - uses: actions/github-script@v7
         env:
-          RESULT: ${{ needs.Release.outputs.RESULT }}
+          VERSION: ${{ needs.Release.outputs.VERSION }}
           RELEASE_NOTES: ${{ needs.Release.outputs.RELEASE_NOTES }}
         with:
           script: |
-            if (process.env['RESULT'] != 'SUCCESS') {
-              console.log('❎ SKIPPED.');
-              return;
-            }
             const {data: pr} = await github.rest.pulls.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: "Merge to main after releasing new version ${{ needs.Release.outputs.VERSION }}",
+              title: `Merge to main after releasing new version ${process['env']['VERSION']}`,
               body: process['env']['RELEASE_NOTES'],
               head: process['env']['BRANCH_TO_RELEASE'],
               base: 'main',

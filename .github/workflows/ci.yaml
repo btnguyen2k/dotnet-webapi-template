@@ -92,25 +92,25 @@ jobs:
           VERSION: ${{ needs.ReleaseDryRun.outputs.VERSION }}
           RELEASE_NOTES: ${{ needs.ReleaseDryRun.outputs.RELEASE_NOTES }}
         with:
-            script: |
-              console.log(`🐛 [DEBUG] RESULT: ${process.env['RESULT']}`);
-              var version = '0.0.0';
-              var releaseNotes = process.env['RESULT'];
+          script: |
+            console.log(`🐛 [DEBUG] RESULT: ${process.env['RESULT']}`);
+            var version = '0.0.0';
+            var releaseNotes = process.env['RESULT'];
 
-              if (process.env['RESULT'] == 'SUCCESS') {
-                version = process.env['VERSION'];
-                releaseNotes = process.env['RELEASE_NOTES'];
-                console.log(`🐛 [DEBUG] RELEASE VERSION: ${process.env['VERSION']}`);
-                console.log(`🐛 [DEBUG] RELEASE NOTES: ${process.env['RELEASE_NOTES']}`);
-              }
-              
-              releaseNotes = releaseNotes.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-              var fs = require('fs');
-              var content = fs.readFileSync('${{ env.NUGET_PROJECT_FILE }}', 'utf8');
-              content = content.replace(/<<VERSION>>/g, version);
-              content = content.replace(/<<RELEASE-NOTES>>/g, releaseNotes);
-              content = content.replace(/<<RELEASE_NOTES>>/g, releaseNotes);
-              fs.writeFileSync('${{ env.NUGET_PROJECT_FILE }}', content);
+            if (process.env['RESULT'] == 'SUCCESS') {
+              version = process.env['VERSION'];
+              releaseNotes = process.env['RELEASE_NOTES'];
+            }
+            console.log(`🐛 [DEBUG] RELEASE VERSION: ${version}`);
+            console.log(`🐛 [DEBUG] RELEASE NOTES: ${releaseNotes}`);
+            
+            releaseNotes = releaseNotes.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            var fs = require('fs');
+            var content = fs.readFileSync('${{ env.NUGET_PROJECT_FILE }}', 'utf8');
+            content = content.replace(/<<VERSION>>/g, version);
+            content = content.replace(/<<RELEASE-NOTES>>/g, releaseNotes);
+            content = content.replace(/<<RELEASE_NOTES>>/g, releaseNotes);
+            fs.writeFileSync('${{ env.NUGET_PROJECT_FILE }}', content);
       - name: Build NuGet package
         run: |
           cat ${{ env.NUGET_PROJECT_FILE }}

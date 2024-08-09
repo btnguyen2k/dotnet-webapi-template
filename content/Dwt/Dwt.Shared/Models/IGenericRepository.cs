@@ -1,16 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Dwt.Shared.Models;
+﻿namespace Dwt.Shared.Models;
 
 /// <summary>
 /// Generic interface for repositories.
 /// </summary>
 /// <typeparam name="T"></typeparam>
-public interface IGenericRepository<T>
+public interface IGenericRepository<T> where T : class, new()
 {
     T Create(T t);
 
@@ -20,5 +14,16 @@ public interface IGenericRepository<T>
 
     bool Update(T t);
 
-    bool Delete(T t);
+	bool Delete(T t);
+
+
+	ValueTask<T> CreateAsync(T t);
+
+    ValueTask<T?> GetByIDAsync(string id);
+
+    IAsyncEnumerable<T> GetAllAsync();
+
+    ValueTask<bool> UpdateAsync(T t);
+
+    ValueTask<bool> DeleteAsync(T t);
 }

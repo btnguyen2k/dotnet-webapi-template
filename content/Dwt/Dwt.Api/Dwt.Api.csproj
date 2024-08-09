@@ -19,6 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Dwt.Shared.EF\Dwt.Shared.EF.csproj" />
     <ProjectReference Include="..\Dwt.Shared\Dwt.Shared.csproj" />
   </ItemGroup>
 

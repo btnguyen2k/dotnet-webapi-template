@@ -41,6 +41,8 @@ jobs:
       - name: Build
         run: |
           sed -i -E "s/<<VERSION>>/0.0.0/" Ddth.Templates.WebApi.csproj
+          sed -i -E "s/<<RELEASE-NOTES>>/empty/" Ddth.Templates.WebApi.csproj
+          sed -i -E "s/<<RELEASE_NOTES>>/empty/" Ddth.Templates.WebApi.csproj
           dotnet build
           cd content/Dwt/ && dotnet build
       - name: Perform CodeQL Analysis

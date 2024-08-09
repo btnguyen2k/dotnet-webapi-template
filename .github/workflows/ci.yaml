@@ -11,6 +11,7 @@ on:
 env:
   TEMPLATE_ROOT: ./content/Dwt
   TAG_PREFIX: v
+  NUGET_PROJECT_FILE: Ddth.Templates.WebApi.csproj
 
 jobs:
   BuildAndTestTemplate:
@@ -67,6 +68,53 @@ jobs:
           branches: ${{ github.ref_name }}
           tag-prefix: ${{ env.TAG_PREFIX }}
           tag-only: true
+
+  TestNugetPackage:
+    needs: ReleaseDryRun
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        dotnet: [ '8.x', '9.x' ]
+    name: Build NuGet package with dotnet ${{ matrix.dotnet }}
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+      - name: Setup dotnet ${{ matrix.dotnet }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ matrix.dotnet }}
+      - name: Display dotnet version
+        run: dotnet --version
+      - name: Update NuGet metadata
+        uses: actions/github-script@v7
+        env:
+          RESULT: ${{ needs.ReleaseDryRun.outputs.RESULT }}
+          VERSION: ${{ needs.ReleaseDryRun.outputs.VERSION }}
+          RELEASE_NOTES: ${{ needs.ReleaseDryRun.outputs.RELEASE_NOTES }}
+        with:
+            script: |
+              console.log(`🐛 [DEBUG] RESULT: ${process.env['RESULT']}`);
+              var version = '0.0.0';
+              var releaseNotes = process.env['RESULT'];
+
+              if (process.env['RESULT'] == 'SUCCESS') {
+                version = process.env['VERSION'];
+                releaseNotes = process.env['RELEASE_NOTES'];
+                console.log(`🐛 [DEBUG] RELEASE VERSION: ${process.env['VERSION']}`);
+                console.log(`🐛 [DEBUG] RELEASE NOTES: ${process.env['RELEASE_NOTES']}`);
+              }
+              
+              releaseNotes = releaseNotes.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+              var fs = require('fs');
+              var content = fs.readFileSync('${{ env.NUGET_PROJECT_FILE }}', 'utf8');
+              content = content.replace(/<<VERSION>>/g, version);
+              content = content.replace(/<<RELEASE-NOTES>>/g, releaseNotes);
+              content = content.replace(/<<RELEASE_NOTES>>/g, releaseNotes);
+              fs.writeFileSync('${{ env.NUGET_PROJECT_FILE }}', content);
+      - name: Build NuGet package
+        run: |
+          cat ${{ env.NUGET_PROJECT_FILE }}
+          dotnet pack
 
   TestDockerfileLinuxTemplate:
     needs: BuildAndTestTemplate

@@ -21,7 +21,7 @@ public class SampleAuthenticatorAsyncBootstrapper(IServiceProvider serviceProvid
     /// <summary>
     /// JWT implementation of IAuthenticator.
     /// </summary>
-    class SampleJwtAuthenticator(IConfiguration config, IUserRepository userService) : IAuthenticator
+    sealed class SampleJwtAuthenticator(IConfiguration config, IUserRepository userService) : IAuthenticator
     {
         private readonly int expirationSeconds = int.Parse(config["Jwt:Expiration"] ?? "3600");
         private readonly IUserRepository userService = userService;
@@ -39,7 +39,7 @@ public class SampleAuthenticatorAsyncBootstrapper(IServiceProvider serviceProvid
         /// <inheritdoc />
         public AuthResp Authenticate(AuthReq req)
         {
-            User? user = userService.GetByID(req.Id ?? "");
+            var user = userService.GetByID(req.Id ?? "");
             if (user == null || !user.Authenticate(req.Secret))
             {
                 return AuthResp.AuthFailed;
@@ -55,7 +55,7 @@ public class SampleAuthenticatorAsyncBootstrapper(IServiceProvider serviceProvid
             {
                 var principal = JwtRepository.ValidateToken(jwtToken);
                 var claimUserId = principal.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Upn)?.Value;
-                User? user = userService.GetByID(claimUserId ?? "");
+                var user = userService.GetByID(claimUserId ?? "");
                 if (user == null)
                 {
                     return AuthResp.AuthFailed;

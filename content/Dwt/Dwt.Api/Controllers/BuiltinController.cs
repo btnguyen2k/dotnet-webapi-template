@@ -121,11 +121,11 @@ public class BuiltinController : DwtBaseController
         return ResponseOk(data);
     }
 
-    private static readonly Dictionary<string, object> _noAuthenticatorOrErrorAuthenticating = new()
-    {
-        { "status", 500 },
-        { "message", "No authenticator defined or error while authenticating." },
-    };
+    //private static readonly Dictionary<string, object> _noAuthenticatorOrErrorAuthenticating = new()
+    //{
+    //    { "status", 500 },
+    //    { "message", "No authenticator defined or error while authenticating." },
+    //};
 
     /// <summary>
     /// Authenticates the client.
@@ -158,7 +158,7 @@ public class BuiltinController : DwtBaseController
     [JwtAuthorize]
     public ActionResult<ApiResp<AuthResp>> RefreshAuthToken()
     {
-        var token = Request.Headers["Authorization"].FirstOrDefault()?.Split(" ").Last();
+        var token = Request.Headers.Authorization.FirstOrDefault()?.Split(" ").Last();
         if (token == null)
         {
             return ResponseNoData(403, "No token provided.");

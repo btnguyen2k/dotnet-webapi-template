@@ -1,0 +1,10 @@
+﻿# Auto detect text files and perform LF normalization
+*.bat           text eol=crlf
+*.ps            text eol=crlf
+*.sln           text
+*.csproj        text
+*.cs            text
+*.sh            text eol=lf
+*.verified.txt  text eol=lf working-tree-encoding=UTF-8
+*.verified.xml  text eol=lf working-tree-encoding=UTF-8
+*.verified.json text eol=lf working-tree-encoding=UTF-8

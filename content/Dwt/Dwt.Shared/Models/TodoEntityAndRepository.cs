@@ -36,5 +36,5 @@ public class TodoItem
 /// <remarks>Entity and repository interface are in the same file just for simplicity only.</remarks>
 public interface ITodoRepository : IGenericRepository<TodoItem>
 {
-    public IEnumerable<TodoItem> GetMyTodos(User user);
+    public IAsyncEnumerable<TodoItem> GetMyTodos(User user);
 }

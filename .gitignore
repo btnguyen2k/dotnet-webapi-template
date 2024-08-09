@@ -4,7 +4,7 @@
 ## Get latest from https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
 
 # Custom ignore rules
-content/Dwt/Dwt.Api/data/sqlite/*.db
+content/**/sqlite/*.db
 [Tt]emp/
 
 # User-specific files

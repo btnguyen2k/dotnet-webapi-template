@@ -24,11 +24,11 @@ public class User
     /// <summary>
     /// Convenience method to convert comma-delimited role string to an array of roles.
     /// </summary>
-    /// <param name="_role"></param>
+    /// <param name="roleNames"></param>
     /// <returns></returns>
-    public static string[] RoleStrToArr(string _role)
+    public static string[] RoleStrToArr(string roleNames)
     {
-        var role = Regex.Replace(Regex.Replace(_role.ToUpper(), _prefixPattern, ""), _suffixPattern, "");
+        var role = Regex.Replace(Regex.Replace(roleNames.ToUpper(), _prefixPattern, ""), _suffixPattern, "");
         var result = role != "" ? Regex.Split(role, _delimPattern) : [];
         return result;
     }
@@ -36,14 +36,8 @@ public class User
     [JsonPropertyName("roles")]
     public string[] Roles
     {
-        get
-        {
-            return RoleStrToArr(Role);
-        }
-        set
-        {
-            Role = string.Join(',', value ?? []);
-        }
+        get => RoleStrToArr(Role);
+        set => Role = string.Join(',', value ?? []);
     }
 
     public bool HasRole(string role)

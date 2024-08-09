@@ -18,7 +18,7 @@ public class JwtAuthorizeAttribute : Attribute, IAuthorizationFilter
     /// </summary>
     public string? Roles
     {
-        get { return _roles; }
+        get => _roles;
         set
         {
             _roles = value;
@@ -71,14 +71,12 @@ public class JwtAuthorizeAttribute : Attribute, IAuthorizationFilter
         {
             var principal = tokenHandler.ValidateToken(token, validationParameters, out var validatedToken);
             var claimRoles = principal.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
-            if (claimRoles != null && _rolesList != null && _rolesList.Length > 0)
+            if (claimRoles == null || _rolesList is not { Length: > 0 }) return;
+            
+            var userRoles = User.RoleStrToArr(claimRoles);
+            if (!_rolesList.Any(r => userRoles.Contains(r)))
             {
-
-                var userRoles = User.RoleStrToArr(claimRoles);
-                if (!_rolesList.Any(r => userRoles.Contains(r)))
-                {
-                    context.Result = _deniedResult;
-                }
+	            context.Result = _deniedResult;
             }
         }
         catch (Exception e)

@@ -6,7 +6,7 @@ var logger = builder.Services.FirstOrDefault(
     s => s.ServiceType == typeof(ILogger<Program>))?.ImplementationInstance as ILogger<Program>;
 if (logger == null)
 {
-    using ILoggerFactory factory = LoggerFactory.Create(b => b.AddConsole());
+    using var factory = LoggerFactory.Create(b => b.AddConsole());
     //using ILoggerFactory factory = LoggerFactory.Create(b => b.AddConfiguration(builder.Configuration.GetSection("Logging")));
     logger = factory.CreateLogger<Program>();
 }
@@ -19,12 +19,14 @@ if (appBootstrapperType == null)
     logger.LogError("Application bootstrapper not found.");
     return;
 }
+
 var appBootstrapper = ReflectionHelper.CreateInstance<IApplicationBootstrapper>(builder.Services, appBootstrapperType);
 if (appBootstrapper == null)
 {
     logger.LogError("Application bootstrapper not found.");
     return;
 }
+
 
 var app = appBootstrapper.CreateApplication(builder);
 GlobalVars.App = app;

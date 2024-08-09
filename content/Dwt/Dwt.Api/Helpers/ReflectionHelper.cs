@@ -1,6 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using System;
-using System.Reflection;
+﻿using System.Reflection;
 
 namespace Dwt.Api.Helpers;
 

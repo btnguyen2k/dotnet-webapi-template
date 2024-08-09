@@ -1,5 +1,17 @@
 # .NET WebAPI Template release notes
 
+## 2024-08-09 - v0.3.0
+
+### Added/Refactoring
+
+- Added .editorconfig and .gitattributes files.
+- Refactored to move EF repositories to a separate project.
+
+### Fixed/Improvement
+
+- Improved .gitignore rules.
+- Improvement: fixed CA2254 warning.
+
 ## 2024-08-08 - v0.2.1
 
 ### Fixed/Improvement

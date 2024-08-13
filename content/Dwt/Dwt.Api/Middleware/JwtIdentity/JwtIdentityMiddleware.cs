@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.Extensions.Options;
 using System.Security.Claims;
 
-namespace Dwt.Api.Middleware.Jwt;
+namespace Dwt.Api.Middleware.JwtIdentity;
 
 /// <summary>
 /// Middleware that decodes the JWT token in the request Authorization header (if any) and attaches

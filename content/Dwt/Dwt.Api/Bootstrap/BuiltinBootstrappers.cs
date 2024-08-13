@@ -1,5 +1,5 @@
 ﻿using Dwt.Api.Helpers;
-using Dwt.Api.Middleware.Jwt;
+using Dwt.Api.Middleware.JwtIdentity;
 using Dwt.Api.Models;
 using Dwt.Shared.Models;
 using Microsoft.EntityFrameworkCore;

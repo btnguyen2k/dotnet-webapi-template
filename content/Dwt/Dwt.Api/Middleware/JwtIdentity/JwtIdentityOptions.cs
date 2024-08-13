@@ -1,6 +1,6 @@
 ﻿using Dwt.Api.Helpers;
 
-namespace Dwt.Api.Middleware.Jwt;
+namespace Dwt.Api.Middleware.JwtIdentity;
 
 public class JwtIdentityOptions
 {

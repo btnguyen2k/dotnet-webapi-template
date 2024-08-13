@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Options;
 
-namespace Dwt.Api.Middleware.Jwt;
+namespace Dwt.Api.Middleware.JwtIdentity;
 
 public static class JwtIdentityApplicationBuilderExtensions
 {

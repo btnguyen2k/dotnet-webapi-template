@@ -1,5 +1,5 @@
 ﻿using Dwt.Api.Helpers;
-using Dwt.Api.Middleware;
+using Dwt.Api.Middleware.Jwt;
 using Dwt.Api.Models;
 using Dwt.Shared.Models;
 using Microsoft.EntityFrameworkCore;
@@ -135,6 +135,9 @@ public class ApplicationBootstrapper : IApplicationBootstrapper
         builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
         ConfigureDbContext(builder);
         ConfigureControllers(builder);
+
+		builder.Services.AddJwtIdentity(options => options.UserIdKey = "MyOwnKey");
+
         var app = builder.Build();
         GlobalVars.App = app;
         logger.LogInformation("WebApplication instance created and added to GlobalVars.");
@@ -154,7 +157,7 @@ public class ApplicationBootstrapper : IApplicationBootstrapper
     protected void ConfigureMiddlewares(WebApplication app)
     {
         app.UseExceptionHandler(o => { }) //workaround for https://github.com/dotnet/aspnetcore/issues/51888
-            .UseMiddleware<JwtMiddleware>();
+            .UseJwtIdentity();
     }
 
     /// <summary>

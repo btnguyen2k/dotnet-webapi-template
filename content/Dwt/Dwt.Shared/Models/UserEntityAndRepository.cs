@@ -29,7 +29,7 @@ public class User
     public static string[] RoleStrToArr(string roleNames)
     {
         var role = Regex.Replace(Regex.Replace(roleNames.ToUpper(), _prefixPattern, ""), _suffixPattern, "");
-        var result = role != "" ? Regex.Split(role, _delimPattern) : [];
+        var result = !string.IsNullOrEmpty(role) ? Regex.Split(role, _delimPattern) : [];
         return result;
     }
 

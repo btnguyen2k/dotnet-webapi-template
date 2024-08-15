@@ -2,31 +2,11 @@
 
 namespace Dwt.Api.Controllers;
 
-
 /// <summary>
 /// Response to an API call.
 /// </summary>
 public class ApiResp<T>
 {
-    //public static ApiResp<object> Ok() => new ApiResp<object>
-    //{
-    //    Status = 200,
-    //    Message = "Ok.",
-    //};
-
-    //public static ApiResp<object> Ok(string message) => new ApiResp<object>
-    //{
-    //    Status = 200,
-    //    Message = message,
-    //};
-
-    //public static ApiResp<T> Ok(string message, T data) => new ApiResp<T>
-    //{
-    //    Status = 200,
-    //    Message = message,
-    //    Data = data,
-    //};
-
     /// <summary>
     /// Status of the API call, following HTTP status codes convention.
     /// </summary>

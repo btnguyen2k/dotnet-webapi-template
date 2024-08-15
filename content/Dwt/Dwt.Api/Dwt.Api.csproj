@@ -23,4 +23,8 @@
     <ProjectReference Include="..\Dwt.Shared\Dwt.Shared.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Controllers\Samples\" />
+  </ItemGroup>
+
 </Project>

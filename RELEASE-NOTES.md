@@ -1,5 +1,16 @@
 # .NET WebAPI Template release notes
 
+## 2024-08-15 - v0.4.0
+
+### Added/Refactoring
+
+- Refactor: bootstrap flow redesigned.
+- Refactor: JWT authorization redesigned.
+
+### Fixed/Improvement
+
+- Fixed CA1820, CA1823, ASP0015, IDE0007 warnings.
+
 ## 2024-08-09 - v0.3.0
 
 ### Added/Refactoring

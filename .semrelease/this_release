@@ -2,6 +2,5 @@
 # Generate its content quickly using the following command:
 #   git log origin..HEAD | grep "^\s" > .semrelease/this_release
 - Fixed CA1820, CA1823, ASP0015, IDE0007 warnings.
-- Refactored/Redesigned bootstrap flow.
-- Refactor/Redesigned JWT authorization.
-
+- Refactoring: bootstrap flow redesigned.
+- Refactoring: JWT authorization redesigned.

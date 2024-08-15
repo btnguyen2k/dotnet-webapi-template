@@ -32,7 +32,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <PackageReleaseNotes>See https://github.com/btnguyen2k/dotnet-webapi-template/releases/v<<VERSION>></PackageReleaseNotes>
+    <PackageReleaseNotes><<RELEASE-NOTES>></PackageReleaseNotes>
   </PropertyGroup>
 
   <PropertyGroup>

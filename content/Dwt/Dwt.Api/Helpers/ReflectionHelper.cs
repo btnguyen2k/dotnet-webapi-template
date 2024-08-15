@@ -9,16 +9,26 @@ public static class ReflectionHelper
 {
     private static object?[] BuildDIParams(IServiceCollection serviceCollection, ParameterInfo[] constructorParams)
     {
-        return constructorParams.Select(
-            param => serviceCollection.FirstOrDefault(
-                s => s.ServiceType == param.ParameterType)?.ImplementationInstance).ToArray();
+		// TODO: ASP0000 - calling IServiceCollection.BuildServiceProvider results in more than one copy of singleton
+		// services being created which might result in incorrect application behavior.
+		// Proposed workaround/fix: special treat for IOptions<T>, ILoggerFactory and ILogger<T>?
+		return BuildDIParams(serviceCollection.BuildServiceProvider(), constructorParams);
+
+        //return constructorParams.Select(
+        //    param => serviceCollection.FirstOrDefault(
+        //        s => s.ServiceType == param.ParameterType)?.ImplementationInstance).ToArray();
     }
 
     private static object?[] BuildDIParams(IServiceCollection serviceCollection, Type[] constructorParams)
     {
-        return constructorParams.Select(
-            param => serviceCollection.FirstOrDefault(
-                s => s.ServiceType == param)?.ImplementationInstance).ToArray();
+		// TODO: ASP0000 - calling IServiceCollection.BuildServiceProvider results in more than one copy of singleton
+		// services being created which might result in incorrect application behavior.
+		// Proposed workaround/fix: special treat for IOptions<T>, ILoggerFactory and ILogger<T>?
+		return BuildDIParams(serviceCollection.BuildServiceProvider(), constructorParams);
+
+        //return constructorParams.Select(
+        //    param => serviceCollection.FirstOrDefault(
+        //        s => s.ServiceType == param)?.ImplementationInstance).ToArray();
     }
 
     private static object?[] BuildDIParams(IServiceProvider serviceProvider, ParameterInfo[] constructorParams)

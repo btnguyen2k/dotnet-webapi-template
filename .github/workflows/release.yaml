@@ -35,7 +35,7 @@ jobs:
           node-version: 'lts/*'
       - name: Release (dry-run)
         id: release_dry_run
-        uses: btnguyen2k/action-semrelease@v3
+        uses: btnguyen2k/action-semrelease@v4
         with:
           dry-run: true
           auto-mode: true

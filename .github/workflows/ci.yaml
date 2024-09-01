@@ -75,7 +75,7 @@ jobs:
           tag-only: true
 
   TestNugetPackage:
-    needs: ReleaseDryRun
+    needs: BuildAndTestTemplate
     runs-on: ubuntu-latest
     strategy:
       matrix:

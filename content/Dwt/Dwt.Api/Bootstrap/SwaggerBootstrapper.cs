@@ -7,20 +7,10 @@ namespace Dwt.Api.Bootstrap;
 /// <summary>
 /// Built-in bootstrapper that initializes Swagger/OpenAPI services and UI.
 /// </summary>
-/// <param name="logger"></param>
-public class SwaggerBootstrapper(ILogger<SwaggerBootstrapper> logger) : IBootstrapper
+[Bootstrapper(Priority = 2000)]
+public class SwaggerBootstrapper
 {
-	public void DecorateApp(WebApplication app)
-	{
-		var tryParse = bool.TryParse(Environment.GetEnvironmentVariable(GlobalVars.ENV_ENABLE_SWAGGER_UI), out var enableSwaggerUi);
-		if (!app.Environment.IsDevelopment() && (!tryParse || !enableSwaggerUi)) return;
-
-		app.UseSwagger();
-		app.UseSwaggerUI();
-		logger.LogInformation("Swagger UI enabled at /swagger");
-	}
-
-	public void ConfigureBuilder(WebApplicationBuilder appBuilder)
+	public static void ConfigureBuilder(WebApplicationBuilder appBuilder)
 	{
 		// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 		appBuilder.Services.AddSwaggerGen(options =>
@@ -75,5 +65,15 @@ public class SwaggerBootstrapper(ILogger<SwaggerBootstrapper> logger) : IBootstr
 			var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
 			options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
 		});
+	}
+
+	public static void DecorateApp(WebApplication app, ILogger<SwaggerBootstrapper> logger)
+	{
+		var tryParse = bool.TryParse(Environment.GetEnvironmentVariable(GlobalVars.ENV_ENABLE_SWAGGER_UI), out var enableSwaggerUi);
+		if (!app.Environment.IsDevelopment() && (!tryParse || !enableSwaggerUi)) return;
+
+		app.UseSwagger();
+		app.UseSwaggerUI();
+		logger.LogInformation("Swagger UI enabled at /swagger");
 	}
 }

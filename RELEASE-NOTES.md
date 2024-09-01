@@ -1,5 +1,11 @@
 # .NET WebAPI Template release notes
 
+## 2024-09-01 - v1.0.0
+
+### Changes
+
+- Redesigned bootstrapping.
+
 ## 2024-08-15 - v0.4.0
 
 ### Added/Refactoring

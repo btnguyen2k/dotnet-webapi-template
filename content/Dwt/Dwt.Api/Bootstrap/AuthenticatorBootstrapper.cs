@@ -11,10 +11,13 @@ namespace Dwt.Api.Bootstrap;
 /// <remarks>
 ///		This bootstrapper initializes and registers an IAuthenticator service with the DI container.
 /// </remarks>
-public class AuthenticatorBootstrapper(ILogger<AuthenticatorBootstrapper> logger) : NoopBootstrapper
+[Bootstrapper]
+public class AuthenticatorBootstrapper 
 {
-	public override void ConfigureBuilder(WebApplicationBuilder appBuilder)
+	public static void ConfigureBuilder(WebApplicationBuilder appBuilder)
 	{
+		var logger = LoggerFactory.Create(b => b.AddConsole()).CreateLogger<AuthenticatorBootstrapper>();
+
 		logger.LogInformation("Initializing Sample Authenticator...");
 		appBuilder.Services.AddSingleton<IAuthenticator, SampleJwtAuthenticator>();
 		logger.LogInformation("Sample Authenticator initialized.");

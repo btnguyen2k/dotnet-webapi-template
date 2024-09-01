@@ -14,15 +14,13 @@ namespace Dwt.Api.Bootstrap;
 ///		- This bootstrapper stores the JWT configurations in the service container as IOption&lt;JwtOptions&gt; for later use via dependency injection.<br/>
 ///		- Also, a IJwtService is registered in the service container.
 /// </remarks>
-public class JwtBootstrapper(ILogger<JwtBootstrapper> logger, IConfiguration config, IOptions<CryptoOptions> cryptoOptions) : IBootstrapper
+[Bootstrapper(Priority = 500)]
+public class JwtBootstrapper
 {
-	public void DecorateApp(WebApplication app)
+	public static void ConfigureBuilder(WebApplicationBuilder appBuilder, IConfiguration config, IOptions<CryptoOptions> cryptoOptions)
 	{
-		app.UseMiddleware<JwtIdentityMiddleware>();
-	}
+		var logger = LoggerFactory.Create(b => b.AddConsole()).CreateLogger<JwtBootstrapper>();
 
-	public void ConfigureBuilder(WebApplicationBuilder appBuilder)
-	{
 		logger.LogInformation("Initializing JWT...");
 
 		var jwtIssuer = config["Jwt:Issuer"] ?? "<not defined>";
@@ -62,5 +60,10 @@ public class JwtBootstrapper(ILogger<JwtBootstrapper> logger, IConfiguration con
 		appBuilder.Services.AddSingleton<IJwtService, JwtService>();
 
 		logger.LogInformation("JWT initialized.");
+	}
+
+	public static void DecorateApp(WebApplication app)
+	{
+		app.UseMiddleware<JwtIdentityMiddleware>();
 	}
 }

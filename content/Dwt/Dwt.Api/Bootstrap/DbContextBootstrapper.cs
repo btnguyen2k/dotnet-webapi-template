@@ -8,11 +8,13 @@ namespace Dwt.Api.Bootstrap;
 /// <summary>
 /// Built-in bootstrapper that initializes DbContext/DbContextPool services.
 /// </summary>
-/// <param name="logger"></param>
-public class DbContextBootstrapper(ILogger<DbContextBootstrapper> logger) : NoopBootstrapper
+[Bootstrapper]
+public class DbContextBootstrapper
 {
-	public override void ConfigureBuilder(WebApplicationBuilder appBuilder)
+	public static void ConfigureBuilder(WebApplicationBuilder appBuilder)
 	{
+		var logger = LoggerFactory.Create(b => b.AddConsole()).CreateLogger<DbContextBootstrapper>();
+
 		logger.LogInformation("Configuring DbContext services...");
 
 		appBuilder.Services.AddSingleton<IUserRepository, StaticConfigUserRepository>();

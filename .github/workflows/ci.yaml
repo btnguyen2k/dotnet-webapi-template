@@ -27,6 +27,11 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ matrix.dotnet }}
+      - name: Choose .NET version
+        run: |
+          VERSION=$(echo ${{ matrix.dotnet }} | sed -E "s/^([0-9]+).*/\1/")
+          echo {\"sdk\": {\"version\": \"${VERSION}\"}} > global.json
+          cat global.json
       - name: Display dotnet version
         run: dotnet --version
       - name: Install dependencies
@@ -58,7 +63,7 @@ jobs:
           node-version: 'lts/*'
       - name: Release (dry-run)
         id: release_dry_run
-        uses: btnguyen2k/action-semrelease@v3
+        uses: btnguyen2k/action-semrelease@v4
         with:
           dry-run: true
           auto-mode: true
@@ -70,7 +75,7 @@ jobs:
           tag-only: true
 
   TestNugetPackage:
-    needs: ReleaseDryRun
+    needs: BuildAndTestTemplate
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -83,6 +88,11 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ matrix.dotnet }}
+      - name: Choose .NET version
+        run: |
+          VERSION=$(echo ${{ matrix.dotnet }} | sed -E "s/^([0-9]+).*/\1/")
+          echo {\"sdk\": {\"version\": \"${VERSION}\"}} > global.json
+          cat global.json
       - name: Display dotnet version
         run: dotnet --version
       - name: Update NuGet metadata
@@ -103,7 +113,7 @@ jobs:
             }
             console.log(`🐛 [DEBUG] RELEASE VERSION: ${version}`);
             console.log(`🐛 [DEBUG] RELEASE NOTES: ${releaseNotes}`);
-            
+
             releaseNotes = releaseNotes.replace(/</g, '&lt;').replace(/>/g, '&gt;');
             var fs = require('fs');
             var content = fs.readFileSync('${{ env.NUGET_PROJECT_FILE }}', 'utf8');
@@ -174,6 +184,11 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ matrix.dotnet }}
+      - name: Choose .NET version
+        run: |
+          VERSION=$(echo ${{ matrix.dotnet }} | sed -E "s/^([0-9]+).*/\1/")
+          echo {\"sdk\": {\"version\": \"${VERSION}\"}} > global.json
+          cat global.json
       - name: Display dotnet version
         run: dotnet --version
       - name: Install template
@@ -200,7 +215,7 @@ jobs:
           context: temp/
 
   TestGenerateSolutionWindows:
-    runs-on: windows-latest
+    runs-on: windows-2022
     needs: [BuildAndTestTemplate, TestDockerfileWindowsTemplate]
     strategy:
       matrix:

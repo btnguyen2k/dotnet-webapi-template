@@ -35,7 +35,7 @@ jobs:
           node-version: 'lts/*'
       - name: Release (dry-run)
         id: release_dry_run
-        uses: btnguyen2k/action-semrelease@v3
+        uses: btnguyen2k/action-semrelease@v4
         with:
           dry-run: true
           auto-mode: true
@@ -63,6 +63,13 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Choose .NET version
+        run: |
+          VERSION=$(echo ${{ matrix.dotnet }} | sed -E "s/^([0-9]+).*/\1/")
+          echo {\"sdk\": {\"version\": \"${VERSION}\"}} > global.json
+          cat global.json
+      - name: Display dotnet version
+        run: dotnet --version
       - name: Update NuGet metadata
         uses: actions/github-script@v7
         env:
@@ -117,27 +124,36 @@ jobs:
           git commit -am "Update metadata for new version ${VERSION}"
           git push origin ${BRANCH_TO_RELEASE}
 
-          echo ========== tag ==========
-          git tag -f -a "${TAG_PREFIX}${VERSION}" -m "Release ${TAG_PREFIX}/v${VERSION}"
-          git push origin "${TAG_PREFIX}${VERSION}" -f
-          echo "✅ Done."
-      - name: Create release
-        uses: actions/github-script@v7
-        env:
-          VERSION: ${{ needs.ReleaseDryRun.outputs.VERSION }}
-          RELEASE_NOTES: ${{ needs.ReleaseDryRun.outputs.RELEASE_NOTES }}
+          # echo ========== tag ==========
+          # git tag -f -a "${TAG_PREFIX}${VERSION}" -m "Release ${TAG_PREFIX}/v${VERSION}"
+          # git push origin "${TAG_PREFIX}${VERSION}" -f
+          # echo "✅ Done."
+      # - name: Create release
+      #   uses: actions/github-script@v7
+      #   env:
+      #     VERSION: ${{ needs.ReleaseDryRun.outputs.VERSION }}
+      #     RELEASE_NOTES: ${{ needs.ReleaseDryRun.outputs.RELEASE_NOTES }}
+      #   with:
+      #     script: |
+      #       const {data: release} = await github.rest.repos.createRelease({
+      #         owner: context.repo.owner,
+      #         repo: context.repo.repo,
+      #         tag_name: process.env['TAG_PREFIX'] + process.env['VERSION'],
+      #         name: process.env['TAG_PREFIX'] + process.env['VERSION'],
+      #         body: process.env['RELEASE_NOTES'],
+      #         draft: false,
+      #         prerelease: false,
+      #       });
+      #       console.log('✅ Created release: ', release);
+      - name: SemRelease
+        uses: btnguyen2k/action-semrelease@v4
         with:
-          script: |
-            const {data: release} = await github.rest.repos.createRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              tag_name: process.env['TAG_PREFIX'] + process.env['VERSION'],
-              name: process.env['TAG_PREFIX'] + process.env['VERSION'],
-              body: process.env['RELEASE_NOTES'],
-              draft: false,
-              prerelease: false,
-            });
-            console.log('✅ Created release: ', release);
+          auto-mode: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          tag-major-release: false
+          tag-minor-release: false
+          branches: ${{ env.BRANCH_TO_RELEASE }}
+          tag-prefix: ${{ env.TAG_PREFIX }}
       - name: Cleanup file .semrelease/this_release
         run: |
           VERSION='${{ needs.ReleaseDryRun.outputs.VERSION }}'

@@ -2,9 +2,10 @@
 
 namespace Dwt.Api.Bootstrap;
 
-public class ControllersBootstrapper : IBootstrapper
+[Bootstrapper]
+public class ControllersBootstrapper
 {
-	public void ConfigureBuilder(WebApplicationBuilder appBuilder)
+	public static void ConfigureBuilder(WebApplicationBuilder appBuilder)
 	{
 		appBuilder.Services.AddControllers(options =>
 		{
@@ -14,7 +15,7 @@ public class ControllersBootstrapper : IBootstrapper
 		});
 	}
 
-	public void DecorateApp(WebApplication app)
+	public static void DecorateApp(WebApplication app)
 	{
 		app.MapControllers();
 	}

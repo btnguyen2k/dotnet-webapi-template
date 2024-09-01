@@ -1,6 +1,6 @@
 ﻿using Dwt.Api.Services;
-using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 
 namespace Dwt.Api.Bootstrap;
 
@@ -10,10 +10,13 @@ namespace Dwt.Api.Bootstrap;
 /// <remarks>
 ///		The keypair is then stored in the service container as IOption&lt;CryptoOptions&gt; for later use via dependency injection.
 /// </remarks>
-public class CryptoKeysBootstrapper(ILogger<CryptoKeysBootstrapper> logger, IConfiguration config) : NoopBootstrapper
+[Bootstrapper(Priority = 100)]
+public class CryptoKeysBootstrapper
 {
-	public override void ConfigureBuilder(WebApplicationBuilder appBuilder)
+	public static void ConfigureBuilder(WebApplicationBuilder appBuilder, IConfiguration config)
 	{
+		var logger = LoggerFactory.Create(b => b.AddConsole()).CreateLogger<CryptoKeysBootstrapper>();
+
 		logger.LogInformation("Initializing Cryptography keys...");
 
 		RSA privKey;

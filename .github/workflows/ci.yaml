@@ -58,7 +58,7 @@ jobs:
           node-version: 'lts/*'
       - name: Release (dry-run)
         id: release_dry_run
-        uses: btnguyen2k/action-semrelease@v3
+        uses: btnguyen2k/action-semrelease@v4
         with:
           dry-run: true
           auto-mode: true
@@ -103,7 +103,7 @@ jobs:
             }
             console.log(`🐛 [DEBUG] RELEASE VERSION: ${version}`);
             console.log(`🐛 [DEBUG] RELEASE NOTES: ${releaseNotes}`);
-            
+
             releaseNotes = releaseNotes.replace(/</g, '&lt;').replace(/>/g, '&gt;');
             var fs = require('fs');
             var content = fs.readFileSync('${{ env.NUGET_PROJECT_FILE }}', 'utf8');

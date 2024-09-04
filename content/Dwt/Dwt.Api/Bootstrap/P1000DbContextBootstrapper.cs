@@ -1,5 +1,7 @@
 ﻿using Dwt.Api.Helpers;
 using Dwt.Api.Models;
+using Dwt.Shared.EF.Identity;
+using Dwt.Shared.Identity;
 using Dwt.Shared.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,18 +16,17 @@ public class DbContextBootstrapper
 	public static void ConfigureBuilder(WebApplicationBuilder appBuilder)
 	{
 		var logger = LoggerFactory.Create(b => b.AddConsole()).CreateLogger<DbContextBootstrapper>();
-
 		logger.LogInformation("Configuring DbContext services...");
+
+		var tryParseInitDb = bool.TryParse(Environment.GetEnvironmentVariable(GlobalVars.ENV_INIT_DB), out var initDb);
 
 		appBuilder.Services.AddSingleton<IUserRepository, StaticConfigUserRepository>();
 		logger.LogInformation("StaticConfigUserRepository --> IUserRepository.");
 
-		var tryParse = bool.TryParse(Environment.GetEnvironmentVariable(GlobalVars.ENV_INIT_DB), out var initDb);
-
 		appBuilder.Services.AddDbContext<ITodoRepository, TodoDbContextRepository>(options =>
 		{
 			options.UseInMemoryDatabase("TodoList");
-			if (appBuilder.Environment.IsDevelopment() || tryParse && initDb)
+			if (appBuilder.Environment.IsDevelopment() || (tryParseInitDb && initDb))
 			{
 				var optBuilder = (DbContextOptionsBuilder<TodoDbContextRepository>)options;
 				using var dbContext = new TodoDbContextRepository(optBuilder.Options);
@@ -39,7 +40,7 @@ public class DbContextBootstrapper
 		{
 			var connStr = appBuilder.Configuration.GetConnectionString("NotesDbContext");
 			options.UseSqlite(connStr);
-			if (appBuilder.Environment.IsDevelopment() || tryParse && initDb)
+			if (appBuilder.Environment.IsDevelopment() || (tryParseInitDb && initDb))
 			{
 				var optBuilder = (DbContextOptionsBuilder<NoteDbContextRepository>)options;
 				using var dbContext = new NoteDbContextRepository(optBuilder.Options);

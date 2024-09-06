@@ -3,6 +3,7 @@ using Dwt.Shared.EF.Identity;
 using Dwt.Shared.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using System.Security.Cryptography;
 
 namespace Dwt.Api.Bootstrap;
@@ -17,6 +18,15 @@ sealed class Commons
 		RequireLowercase = true,
 		RequireUppercase = true,
 		RequireNonAlphanumeric = false,
+	};
+
+	public static ClaimsIdentityOptions claimsIdentityOptions = new()
+	{
+		EmailClaimType = "email",
+		RoleClaimType = "role",
+		UserIdClaimType = "uid",
+		UserNameClaimType = "uname",
+		SecurityStampClaimType = "sec",
 	};
 }
 
@@ -56,8 +66,24 @@ public class IdentityBootstrapper
 					throw new InvalidDataException("Invalid DbType is specified in the configuration.");
 			}
 		});
-		appBuilder.Services.AddIdentity<DwtUser, DwtRole>(opts => opts.Password = Commons.passwordOptions)
-			.AddEntityFrameworkStores<DwtIdentityDbContext>();
+
+		// https://github.com/dotnet/aspnetcore/issues/26119
+		// Use .AddIdentityCore<DwtUser> then add necessary services manually (e.g. AddRoles, AddSignInManager, etc.)
+		// instead of using .AddIdentity<DwtUser, DwtRole>
+		appBuilder.Services
+			//AddIdentity<DwtUser, DwtRole>(opts =>
+			//{
+			//	opts.Password = Commons.passwordOptions;
+			//})
+			.AddIdentityCore<DwtUser>(opts =>
+			{
+				opts.Password = Commons.passwordOptions;
+				opts.ClaimsIdentity = Commons.claimsIdentityOptions;
+			})
+			.AddRoles<DwtRole>()
+			.AddSignInManager<SignInManager<DwtUser>>()
+			.AddEntityFrameworkStores<DwtIdentityDbContext>()
+			;
 
 		appBuilder.Services.AddHostedService<IdentityInitializer>();
 	}
@@ -111,9 +137,8 @@ sealed class IdentityInitializer(
 			var adminUser = await userManager.FindByIdAsync("admin");
 			if (adminUser == null)
 			{
-				var passwordOptions = scope.ServiceProvider.GetService<PasswordOptions>();
-				logger.LogInformation("Password options: {options}", passwordOptions);
-				var generatedPassword = GenerateRandomPassword(passwordOptions);
+				var identityOptions = scope.ServiceProvider.GetRequiredService<IOptions<IdentityOptions>>()?.Value;
+				var generatedPassword = GenerateRandomPassword(identityOptions?.Password);
 				logger.LogWarning("Admin user does not exist. Creating one with a random password: {password}", generatedPassword);
 				logger.LogWarning("PLEASE REMEMBER THIS PASSWORD AS IT WILL NOT BE DISPLAYED AGAIN!");
 

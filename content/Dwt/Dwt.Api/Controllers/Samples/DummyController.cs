@@ -1,10 +1,8 @@
-﻿using Dwt.Shared.Identity;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 
 namespace Dwt.Api.Controllers.Samples;
 
-public class DummyController(UserManager<DwtUser> userNamager) : ApiBaseController
+public class DummyController : ApiBaseController
 {
 	private readonly Random _random = new();
 

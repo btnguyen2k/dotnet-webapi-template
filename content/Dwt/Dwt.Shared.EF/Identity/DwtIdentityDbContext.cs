@@ -16,11 +16,11 @@ public class DwtIdentityDbContext : IdentityDbContext<DwtUser, DwtRole, string>
 		new IdentityRoleClaimEntityTypeConfiguration().Configure(modelBuilder.Entity<IdentityRoleClaim<string>>());
 		new IdentityUserEntityTypeConfiguration().Configure(modelBuilder.Entity<DwtUser>());
 		new IdentityUserClaimEntityTypeConfiguration().Configure(modelBuilder.Entity<IdentityUserClaim<string>>());
-		new IdentityUserLoginEntityTypeConfiguration().Configure(modelBuilder.Entity<IdentityUserLogin<string>>());
+		//new IdentityUserLoginEntityTypeConfiguration().Configure(modelBuilder.Entity<IdentityUserLogin<string>>());
 		new IdentityUserRoleEntityTypeConfiguration().Configure(modelBuilder.Entity<IdentityUserRole<string>>());
 		//new IdentityUserTokenEntityTypeConfiguration().Configure(modelBuilder.Entity<IdentityUserToken<string>>());
 
-		//modelBuilder.Ignore<IdentityUserLogin<string>>();
+		modelBuilder.Ignore<IdentityUserLogin<string>>();
 		modelBuilder.Ignore<IdentityUserToken<string>>();
 	}
 }

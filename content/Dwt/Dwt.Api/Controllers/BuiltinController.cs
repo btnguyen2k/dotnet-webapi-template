@@ -1,7 +1,9 @@
 ﻿using Dwt.Api.Helpers;
 using Dwt.Api.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace Dwt.Api.Controllers;
@@ -15,18 +17,28 @@ public class BuiltinController : ApiBaseController
 
 	private readonly IWebHostEnvironment _env;
 
-	private readonly IAuthenticator _authenticator;
+	private readonly IAuthenticator? _authenticator;
+	private readonly IAuthenticatorAsync? _authenticatorAsync;
 
-	public BuiltinController(IConfiguration config, IWebHostEnvironment env, IOptions<CryptoOptions> cryptoOptions, IAuthenticator authenticator)
+	public BuiltinController(
+		IConfiguration config,
+		IWebHostEnvironment env,
+		IOptions<CryptoOptions> cryptoOptions,
+		IAuthenticator? authenticator, IAuthenticatorAsync? authenticatorAsync)
 	{
 		ArgumentNullException.ThrowIfNull(config, nameof(config));
 		ArgumentNullException.ThrowIfNull(env, nameof(env));
 		ArgumentNullException.ThrowIfNull(cryptoOptions, nameof(cryptoOptions));
 		ArgumentNullException.ThrowIfNull(authenticator, nameof(authenticator));
+		if (authenticator == null && authenticatorAsync == null)
+		{
+			throw new ArgumentNullException("No authenticator defined.", (Exception?)null);
+		}
 
 		_conf = config;
 		_env = env;
 		_authenticator = authenticator;
+		_authenticatorAsync = authenticatorAsync;
 
 		appInfo = new AppInfo
 		{
@@ -131,12 +143,6 @@ public class BuiltinController : ApiBaseController
 		return ResponseOk(data);
 	}
 
-	//private static readonly Dictionary<string, object> _noAuthenticatorOrErrorAuthenticating = new()
-	//{
-	//    { "status", 500 },
-	//    { "message", "No authenticator defined or error while authenticating." },
-	//};
-
 	/// <summary>
 	/// Authenticates the client.
 	/// </summary>
@@ -147,11 +153,15 @@ public class BuiltinController : ApiBaseController
 	[ProducesResponseType(typeof(ApiResp<AuthResp>), StatusCodes.Status403Forbidden)]
 	[ProducesResponseType(StatusCodes.Status500InternalServerError)]
 	[HttpPost("/auth")]
-	public ActionResult<ApiResp<AuthResp>> Authenticate([FromBody] AuthReq authReq)
+	public async Task<ActionResult<ApiResp<AuthResp>>> Authenticate([FromBody] AuthReq authReq)
 	{
-		var resp = _authenticator.Authenticate(authReq);
+		ArgumentNullException.ThrowIfNull(authReq, nameof(authReq));
+
+		var resp = _authenticatorAsync != null
+			? await _authenticatorAsync.AuthenticateAsync(authReq)
+			: _authenticator?.Authenticate(authReq);
 		return resp == null
-			? ResponseNoData(500, "No authenticator defined or error while authenticating.")
+			? ResponseNoData(500, "Error while authenticating.")
 			: resp.Status == 200
 				? ResponseOk(resp)
 				: ResponseNoData(resp.Status, resp.Error);
@@ -161,21 +171,24 @@ public class BuiltinController : ApiBaseController
 	/// Refreshes the client's authentication token.
 	/// </summary>
 	/// <returns></returns>
-	/// <response code="200">Authentication was succesful.</response>
-	/// <response code="403">Authentication failed.</response>
+	/// <response code="200">Authentication token was refreshed succesfully.</response>
+	/// <response code="401">No authentication token found.</response>
+	/// <response code="403">Invalid authentication token.</response>
 	/// <response code="500">No authenticator defined or error while refreshing the token.</response>
 	[HttpPost("/auth/refresh")]
-	[JwtAuthorize]
+	[Authorize]
 	public ActionResult<ApiResp<AuthResp>> RefreshAuthToken()
 	{
 		var token = Request.Headers.Authorization.FirstOrDefault()?.Split(" ").Last();
 		if (token == null)
 		{
-			return ResponseNoData(403, "No token provided.");
+			return ResponseNoData(401, "No auth token found.");
 		}
-		var resp = _authenticator.Refresh(token);
+		var resp = _authenticatorAsync != null
+			? _authenticatorAsync.RefreshAsync(token).Result
+			: _authenticator?.Refresh(token);
 		return resp == null
-			? ResponseNoData(500, "No authenticator defined or error while authenticating.")
+			? ResponseNoData(500, "Error while refreshing auth token.")
 			: resp.Status == 200
 				? ResponseOk(resp)
 				: ResponseNoData(resp.Status, resp.Error);

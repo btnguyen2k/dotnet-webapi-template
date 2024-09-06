@@ -1,8 +1,6 @@
 ﻿using Dwt.Api.Helpers;
-using Dwt.Api.Middleware.JwtIdentity;
 using Dwt.Shared.Models;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 
 namespace Dwt.Api.Controllers.Samples;
 

@@ -1,10 +1,17 @@
 ﻿using Dwt.Api.Helpers;
+using Dwt.Shared.Identity;
 using Dwt.Shared.Models;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace Dwt.Api.Controllers.Samples;
 
-public class UsersController(IUserRepository userRepo) : ApiBaseController
+public class UsersController(
+	IUserRepository userRepo,
+	IOptions<IdentityOptions> identityOptions,
+	UserManager<DwtUser> userManager) : ApiBaseController
 {
 	/// <summary>
 	/// Fetches all users.
@@ -59,17 +66,23 @@ public class UsersController(IUserRepository userRepo) : ApiBaseController
 	/// </summary>
 	/// <returns></returns>
 	[HttpGet("/api/users/-me")]
-	[JwtAuthorize]
-	public ActionResult<ApiResp<User>> GetMyInfo()
+	[Authorize]
+	public async Task<ActionResult<ApiResp<User>>> GetMyInfo()
 	{
-		var userId = GetRequestUserId();
-		var user = userRepo.GetByID(userId ?? "");
+		var userId = HttpContext.User.Claims.FirstOrDefault(c => c.Type == identityOptions.Value.ClaimsIdentity.UserIdClaimType)?.Value;
+		var user = userManager.Users.FirstOrDefault(u => u.Id == userId);
 		if (user == null)
 		{
 			return _respAuthenticationRequired;
 		}
-
-		return ResponseOk(user);
+		var userResponse = new Dictionary<string, object?>()
+		{
+			{"id", user.Id},
+			{"username", user.UserName},
+			{"email", user.Email},
+			{"roles", await userManager.GetRolesAsync(user)},
+		};
+		return ResponseOk(userResponse);
 	}
 
 	/* User list is immutable, can not add/remove/update users for now */

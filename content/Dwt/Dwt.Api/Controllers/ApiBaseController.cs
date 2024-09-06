@@ -1,4 +1,5 @@
 ﻿using Dwt.Api.Helpers;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Dwt.Api.Controllers;
@@ -18,19 +19,19 @@ public abstract class ApiBaseController : ControllerBase
 
 	public ApiBaseController()
 	{
-        _userIdKey= GlobalVars.App?.Configuration["Jwt:HTTP_CTX_ITEM_USERID"] ?? GlobalVars.HTTP_CTX_ITEM_USERID_DEFAULT;
-    }
+		_userIdKey = GlobalVars.App?.Configuration["Jwt:HTTP_CTX_ITEM_USERID"] ?? GlobalVars.HTTP_CTX_ITEM_USERID_DEFAULT;
+	}
 
 	public ApiBaseController(IConfiguration config)
 	{
-        _userIdKey = config["Jwt:HTTP_CTX_ITEM_USERID"] ?? GlobalVars.HTTP_CTX_ITEM_USERID_DEFAULT;
-    }
+		_userIdKey = config["Jwt:HTTP_CTX_ITEM_USERID"] ?? GlobalVars.HTTP_CTX_ITEM_USERID_DEFAULT;
+	}
 
-    /// <summary>
-    /// Convenience method to return a 200 OK response.
-    /// </summary>
-    /// <returns></returns>
-    protected static ObjectResult ResponseOk() => ResponseOk<object>(null);
+	/// <summary>
+	/// Convenience method to return a 200 OK response.
+	/// </summary>
+	/// <returns></returns>
+	protected static ObjectResult ResponseOk() => ResponseOk<object>(null);
 
 	/// <summary>
 	/// Generic response for "200 OK".
@@ -108,5 +109,25 @@ public abstract class ApiBaseController : ControllerBase
 	{
 		HttpContext.Items.TryGetValue(_userIdKey, out var userId);
 		return userId?.ToString();
+	}
+
+	/// <summary>
+	/// Get the attached user-id from the http-context.
+	/// </summary>
+	/// <param name="opts"></param>
+	/// <returns></returns>
+	protected string? GetUserID(IdentityOptions opts)
+	{
+		return HttpContext.User.Claims.FirstOrDefault(c => c.Type == opts.ClaimsIdentity.UserIdClaimType)?.Value;
+	}
+
+	/// <summary>
+	/// Get the attached user-name from the http-context.
+	/// </summary>
+	/// <param name="opts"></param>
+	/// <returns></returns>
+	protected string? GetUserName(IdentityOptions opts)
+	{
+		return HttpContext.User.Claims.FirstOrDefault(c => c.Type == opts.ClaimsIdentity.UserNameClaimType)?.Value;
 	}
 }

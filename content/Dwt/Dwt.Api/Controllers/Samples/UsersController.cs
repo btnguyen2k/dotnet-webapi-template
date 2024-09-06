@@ -1,16 +1,17 @@
-﻿using Dwt.Shared.Identity;
+﻿using Dwt.Api.Services;
+using Dwt.Shared.Identity;
 using Dwt.Shared.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using System.Text.Json.Serialization;
 
 namespace Dwt.Api.Controllers.Samples;
 
 public class UsersController(IOptions<IdentityOptions> identityOptions, UserManager<DwtUser> userManager) : ApiBaseController
 {
-
 	public struct UserResponse
 	{
 		public string Id { get; set; }
@@ -104,6 +105,72 @@ public class UsersController(IOptions<IdentityOptions> identityOptions, UserMana
 			Username = user.UserName!,
 			Email = user.Email!,
 			Roles = userManager.GetRolesAsync(user).Result
+		});
+	}
+
+	public struct ChangePwdReq
+	{
+		[JsonPropertyName("old_password")]
+		public string OldPassword { get; set; }
+
+		[JsonPropertyName("new_password")]
+		public string NewPassword { get; set; }
+	}
+
+	public struct ChangePwdResp
+	{
+		public string Message { get; set; }
+
+		public string Token { get; set; }
+	}
+
+	[HttpPost("/api/users/-me/password")]
+	[Authorize]
+	public async Task<ActionResult<ApiResp<ChangePwdResp>>> ChangeMyPassword(
+		[FromBody] ChangePwdReq req,
+		IPasswordValidator<DwtUser> passwordValidator,
+		IAuthenticator? authenticator, IAuthenticatorAsync? authenticatorAsync)
+	{
+		if (authenticator == null && authenticatorAsync == null)
+		{
+			throw new ArgumentNullException("No authenticator defined.", (Exception?)null);
+		}
+
+		var jwtToken = HttpContext.Request.Headers.Authorization.FirstOrDefault()?.Split(" ").Last()!;
+		var tokenValidationResult = authenticatorAsync != null
+			? await authenticatorAsync.ValidateAsync(jwtToken)
+			: authenticator?.Validate(jwtToken);
+		if (tokenValidationResult == null || tokenValidationResult.Status != 200)
+		{
+			return ResponseNoData(403, tokenValidationResult != null ? tokenValidationResult.Error : "Could not validate authentication token.");
+		}
+
+		var userId = GetUserID(identityOptions.Value);
+		var user = await userManager.Users.FirstOrDefaultAsync(u => u.Id == userId);
+		if (user == null || !await userManager.CheckPasswordAsync(user, req.OldPassword))
+		{
+			return ResponseNoData(403, "Invalid user/password combination.");
+		}
+
+		if (await passwordValidator.ValidateAsync(userManager, user, req.NewPassword) != IdentityResult.Success)
+		{
+			return ResponseNoData(400, "New password does not meet complexity requirements.");
+		}
+
+		var result = await userManager.ChangePasswordAsync(user, req.OldPassword, req.NewPassword);
+		if (result != IdentityResult.Success)
+		{
+			return ResponseNoData(500, "Failed to change password: " + result.Errors.FirstOrDefault()?.Description);
+		}
+
+		var refreshResult = authenticatorAsync != null
+			? await authenticatorAsync.RefreshAsync(jwtToken, true)
+			: authenticator?.Refresh(jwtToken, true);
+
+		return ResponseOk(new ChangePwdResp
+		{
+			Message = "Password changed successfully.",
+			Token = refreshResult!.Token!,
 		});
 	}
 }

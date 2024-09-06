@@ -12,8 +12,8 @@ sealed class Commons
 {
 	public static PasswordOptions passwordOptions = new()
 	{
-		RequiredLength = 16,
-		RequiredUniqueChars = 6,
+		RequiredLength = 8,
+		RequiredUniqueChars = 4,
 		RequireDigit = true,
 		RequireLowercase = true,
 		RequireUppercase = true,

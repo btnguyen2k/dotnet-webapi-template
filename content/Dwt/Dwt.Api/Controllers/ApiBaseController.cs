@@ -1,5 +1,4 @@
-﻿using Dwt.Api.Helpers;
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Dwt.Api.Controllers;
@@ -15,18 +14,6 @@ namespace Dwt.Api.Controllers;
 [Consumes("application/json")]
 public abstract class ApiBaseController : ControllerBase
 {
-	private readonly string _userIdKey;
-
-	public ApiBaseController()
-	{
-		_userIdKey = GlobalVars.App?.Configuration["Jwt:HTTP_CTX_ITEM_USERID"] ?? GlobalVars.HTTP_CTX_ITEM_USERID_DEFAULT;
-	}
-
-	public ApiBaseController(IConfiguration config)
-	{
-		_userIdKey = config["Jwt:HTTP_CTX_ITEM_USERID"] ?? GlobalVars.HTTP_CTX_ITEM_USERID_DEFAULT;
-	}
-
 	/// <summary>
 	/// Convenience method to return a 200 OK response.
 	/// </summary>
@@ -107,8 +94,7 @@ public abstract class ApiBaseController : ControllerBase
 	/// <returns></returns>
 	protected string? GetRequestUserId()
 	{
-		HttpContext.Items.TryGetValue(_userIdKey, out var userId);
-		return userId?.ToString();
+		throw new NotImplementedException();
 	}
 
 	/// <summary>

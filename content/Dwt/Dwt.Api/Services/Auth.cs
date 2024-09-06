@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using System.Text.Json.Serialization;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Dwt.Api.Services;
 
@@ -19,8 +21,16 @@ public interface IAuthenticator
 	/// Refresh an issued authentication token.
 	/// </summary>
 	/// <param name="token">The issued authentication token.</param>
+	/// <param name="ignoreTokenSecurityCheck">If true, donot check if token's security tag is still valid.</param>
 	/// <returns></returns>
-	public AuthResp Refresh(string token);
+	public AuthResp Refresh(string token, bool ignoreTokenSecurityCheck = false);
+
+	/// <summary>
+	/// Validate an issued authentication token.
+	/// </summary>
+	/// <param name="token"></param>
+	/// <returns></returns>
+	public TokenValidationResp Validate(string token);
 }
 
 /// <summary>
@@ -39,12 +49,43 @@ public interface IAuthenticatorAsync
 	/// Refresh an issued authentication token.
 	/// </summary>
 	/// <param name="token">The issued authentication token.</param>
+	/// <param name="ignoreTokenSecurityCheck">If true, donot check if token's security tag is still valid.</param>
 	/// <returns></returns>
-	public Task<AuthResp> RefreshAsync(string token);
+	public Task<AuthResp> RefreshAsync(string token, bool ignoreTokenSecurityCheck = false);
+
+	/// <summary>
+	/// Validate an issued authentication token.
+	/// </summary>
+	/// <param name="token"></param>
+	/// <returns></returns>
+	public Task<TokenValidationResp> ValidateAsync(string token);
 }
 
 /// <summary>
-/// An authentication request.
+/// Resposne to a token validation request.
+/// </summary>
+public class TokenValidationResp
+{
+	/// <summary>
+	/// Validation status.
+	/// </summary>
+	/// <value>200: success</value>
+	[JsonIgnore]
+	public int Status { get; set; }
+
+	/// <summary>
+	/// Additional error information, if any.
+	/// </summary>
+	[JsonPropertyName("error")]
+	[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+	public string? Error { get; set; }
+
+	[JsonIgnore]
+	public ClaimsPrincipal? Principal { get; set; }
+}
+
+/// <summary>
+/// Authentication request.
 /// </summary>
 public class AuthReq
 {
@@ -72,8 +113,8 @@ public class AuthReq
 /// </summary>
 public class AuthResp
 {
-	public static readonly AuthResp AuthFailed = new AuthResp { _status = 403, _error = "Authentication failed." };
-	public static readonly AuthResp TokenExpired = new AuthResp { _status = 401, _error = "Token expired." };
+	public static readonly AuthResp AuthFailed = new() { _status = 403, _error = "Authentication failed." };
+	public static readonly AuthResp TokenExpired = new() { _status = 401, _error = "Token expired." };
 
 	/// <summary>
 	/// Convenience method to create a new AuthResp instance.

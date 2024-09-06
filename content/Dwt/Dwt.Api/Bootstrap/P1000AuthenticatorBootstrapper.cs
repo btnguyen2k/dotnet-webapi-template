@@ -103,15 +103,17 @@ public sealed class SampleJwtAuthenticator(
 	private readonly string claimTypeUserId = identityOptions.Value.ClaimsIdentity.UserIdClaimType;
 	private readonly string claimTypeUsername = identityOptions.Value.ClaimsIdentity.UserNameClaimType;
 	private readonly string claimTypeRole = identityOptions.Value.ClaimsIdentity.RoleClaimType;
+	private const string DefaultSecValue = "00000000";
 
 	private async Task<string> GenerateJwtToken(UserManager<DwtUser> userManager, DwtUser user, DateTime expiry)
 	{
 		var authClaims = new List<Claim>
-			{
-				new (JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-				new(claimTypeUsername, user.UserName ?? ""),
-new(claimTypeUserId, user.Id),
-			};
+		{
+			new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+			new(claimTypeUsername, user.UserName ?? ""),
+			new(claimTypeUserId, user.Id),
+			new("sec", user.SecurityStamp?.Substring(user.SecurityStamp.Length - 8) ?? DefaultSecValue)
+		};
 
 		var userRoles = await userManager.GetRolesAsync(user);
 		authClaims.AddRange(userRoles.Select(role => new Claim(claimTypeRole, role)));
@@ -127,7 +129,7 @@ new(claimTypeUserId, user.Id),
 		using (var scope = serviceProvider.CreateScope())
 		{
 			var userManager = scope.ServiceProvider.GetRequiredService<UserManager<DwtUser>>();
-			var user = await userManager.FindByNameAsync(req?.Id ?? "");
+			var user = req.Id != null ? await userManager.FindByNameAsync(req.Id) : null;
 			if (user == null)
 			{
 				logger.LogError("Authentication failed: user '{username}' not found.", req?.Id);
@@ -135,7 +137,6 @@ new(claimTypeUserId, user.Id),
 			}
 			var signinManager = scope.ServiceProvider.GetRequiredService<SignInManager<DwtUser>>();
 			var result = await signinManager.CheckPasswordSignInAsync(user, req?.Secret ?? "", false);
-			//var result = await signinManager.PasswordSignInAsync(user, req?.Secret ?? "", false, false);
 			if (!result.Succeeded)
 			{
 				logger.LogError("Authentication failed: {error}", result.ToString());
@@ -154,21 +155,37 @@ new(claimTypeUserId, user.Id),
 	}
 
 	/// <inheritdoc />
-	public async Task<AuthResp> RefreshAsync(string jwtToken)
+	public async Task<AuthResp> RefreshAsync(string jwtToken, bool ignoreTokenSecurityCheck = false)
 	{
 		try
 		{
 			var principal = jwtService.ValidateToken(jwtToken);
+			var claimUserId = principal.Claims.FirstOrDefault(c => c.Type == claimTypeUserId)?.Value;
 			var claimUsername = principal.Claims.FirstOrDefault(c => c.Type == claimTypeUsername)?.Value;
 			using (var scope = serviceProvider.CreateScope())
 			{
 				var userManager = scope.ServiceProvider.GetRequiredService<UserManager<DwtUser>>();
-				var user = await userManager.FindByNameAsync(claimUsername ?? "");
+				var user = claimUserId != null
+					? await userManager.FindByIdAsync(claimUserId)
+					: claimUsername != null
+						? await userManager.FindByNameAsync(claimUsername)
+						: null;
 				if (user == null)
 				{
-					logger.LogError("AuthToken refreshing failed: user '{user}' not found.", claimUsername);
+					logger.LogError("AuthToken refreshing failed: user '{user}' not found.",
+						claimUserId != null ? $"id:{claimUserId}" : $"name:{claimUsername}");
 					return AuthResp.AuthFailed;
 				}
+				if (!ignoreTokenSecurityCheck)
+				{
+					var claimSec = principal.Claims.FirstOrDefault(c => c.Type == "sec")?.Value ?? DefaultSecValue;
+					if (claimSec != user.SecurityStamp?.Substring(user.SecurityStamp.Length - 8))
+					{
+						logger.LogError("AuthToken refreshing failed: invalid security stamp.");
+						return AuthResp.AuthFailed;
+					}
+				}
+				await userManager.UpdateSecurityStampAsync(user);
 				var expiry = DateTime.Now.AddSeconds(expirationSeconds);
 				return AuthResp.New(200, await GenerateJwtToken(userManager, user, expiry), expiry);
 			}
@@ -180,8 +197,48 @@ new(claimTypeUserId, user.Id),
 	}
 
 	/// <inheritdoc />
-	public AuthResp Refresh(string jwtToken)
+	public AuthResp Refresh(string jwtToken, bool ignoreTokenSecurityCheck = false)
 	{
-		return RefreshAsync(jwtToken).Result;
+		return RefreshAsync(jwtToken, ignoreTokenSecurityCheck).Result;
+	}
+
+	/// <inheritdoc />
+	public async Task<TokenValidationResp> ValidateAsync(string jwtToken)
+	{
+		try
+		{
+			var principal = jwtService.ValidateToken(jwtToken);
+			using (var scope = serviceProvider.CreateScope())
+			{
+				var userManager = scope.ServiceProvider.GetRequiredService<UserManager<DwtUser>>();
+				var claimUserId = principal.Claims.FirstOrDefault(c => c.Type == claimTypeUserId)?.Value;
+				var claimUsername = principal.Claims.FirstOrDefault(c => c.Type == claimTypeUsername)?.Value;
+				var user = claimUserId != null
+					? await userManager.FindByIdAsync(claimUserId)
+					: claimUsername != null
+						? await userManager.FindByNameAsync(claimUsername)
+						: null;
+				if (user == null)
+				{
+					return new TokenValidationResp { Status = 404, Error = "User not found." };
+				}
+				var claimSec = principal.Claims.FirstOrDefault(c => c.Type == "sec")?.Value ?? DefaultSecValue;
+				if (claimSec != user.SecurityStamp?.Substring(user.SecurityStamp.Length - 8))
+				{
+					return new TokenValidationResp { Status = 403, Error = "Invalid security stamp." };
+				}
+				return new TokenValidationResp { Status = 200, Principal = principal };
+			}
+		}
+		catch (Exception e) when (e is ArgumentException || e is SecurityTokenException)
+		{
+			return new TokenValidationResp { Status = 403, Error = e.Message };
+		}
+	}
+
+	/// <inheritdoc />
+	public TokenValidationResp Validate(string jwtToken)
+	{
+		return ValidateAsync(jwtToken).Result;
 	}
 }

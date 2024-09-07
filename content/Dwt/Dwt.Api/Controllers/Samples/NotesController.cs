@@ -1,11 +1,9 @@
-﻿using Dwt.Api.Helpers;
-using Dwt.Api.Services;
+﻿using Dwt.Api.Services;
 using Dwt.Shared.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Dwt.Api.Controllers.Samples;
 
-[JwtAuthorize]
 public class NotesController(IUserRepository userRepo, INoteRepository noteRepo) : ApiBaseController
 {
 	/// <summary>

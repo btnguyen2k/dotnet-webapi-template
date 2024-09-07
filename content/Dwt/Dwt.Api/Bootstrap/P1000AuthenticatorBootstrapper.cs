@@ -174,7 +174,7 @@ public sealed class SampleJwtAuthenticator(
 				{
 					logger.LogError("AuthToken refreshing failed: user '{user}' not found.",
 						claimUserId != null ? $"id:{claimUserId}" : $"name:{claimUsername}");
-					return AuthResp.AuthFailed;
+					return AuthResp.New(403, "User not found.");
 				}
 				if (!ignoreTokenSecurityCheck)
 				{
@@ -182,10 +182,10 @@ public sealed class SampleJwtAuthenticator(
 					if (claimSec != user.SecurityStamp?.Substring(user.SecurityStamp.Length - 8))
 					{
 						logger.LogError("AuthToken refreshing failed: invalid security stamp.");
-						return AuthResp.AuthFailed;
+						return AuthResp.New(403, "Invalid security stamp.");
 					}
 				}
-				await userManager.UpdateSecurityStampAsync(user);
+				await userManager.UpdateSecurityStampAsync(user); // new token should invalidate all previous tokens
 				var expiry = DateTime.Now.AddSeconds(expirationSeconds);
 				return AuthResp.New(200, await GenerateJwtToken(userManager, user, expiry), expiry);
 			}

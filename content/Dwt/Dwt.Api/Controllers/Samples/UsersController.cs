@@ -170,7 +170,7 @@ public class UsersController(IOptions<IdentityOptions> identityOptions, UserMana
 		return ResponseOk(new ChangePwdResp
 		{
 			Message = "Password changed successfully.",
-			Token = refreshResult!.Token!,
+			Token = refreshResult!.Token!, // changing password should invalidate all previous auth tokens
 		});
 	}
 }

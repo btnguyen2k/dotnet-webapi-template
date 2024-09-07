@@ -4,6 +4,7 @@ using Dwt.Shared.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using System.Security.Claims;
 using System.Security.Cryptography;
 
 namespace Dwt.Api.Bootstrap;
@@ -50,6 +51,10 @@ public class IdentityBootstrapper
 
 		appBuilder.Services.AddDbContext<DwtIdentityDbContext>(options =>
 		{
+			if (appBuilder.Environment.IsDevelopment())
+			{
+				options.EnableDetailedErrors().EnableSensitiveDataLogging();
+			}
 			var connStr = appBuilder.Configuration.GetConnectionString("IdentityDbContext") ?? "";
 			switch (dbType)
 			{
@@ -113,7 +118,6 @@ sealed class IdentityInitializer(
 		using (var scope = serviceProvider.CreateScope())
 		{
 			var dbContext = scope.ServiceProvider.GetRequiredService<DwtIdentityDbContext>();
-
 			var tryParseInitDb = bool.TryParse(Environment.GetEnvironmentVariable(GlobalVars.ENV_INIT_DB), out var initDb);
 			if (environment.IsDevelopment() || (tryParseInitDb && initDb))
 			{
@@ -123,14 +127,42 @@ sealed class IdentityInitializer(
 
 			logger.LogInformation("Ensuring roles exist...");
 			var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<DwtRole>>();
-			foreach (var role in DwtRole.ALL_ROLES)
+			foreach (var r in DwtRole.ALL_ROLES)
 			{
-				if (await roleManager.FindByIdAsync(role.Id) == null)
+				if (await roleManager.FindByIdAsync(r.Id) == null)
 				{
-					ThrowsIfNotSucceeded(await roleManager.CreateAsync(role), logger);
+					ThrowsIfNotSucceeded(await roleManager.CreateAsync(r), logger);
 				}
 			}
-			await dbContext.SaveChangesAsync(CancellationToken.None);
+
+			logger.LogInformation("Ensuring permissions setup...");
+			var role = await roleManager.FindByIdAsync(DwtRole.ACCOUNT_ADMIN.Id);
+			if (role != null)
+			{
+				var claims = await roleManager.GetClaimsAsync(role);
+				var expectedClaims = new Claim[] { DwtIdentity.CLAIM_PERM_CREATE_USER };
+				foreach (var expectedClaim in expectedClaims)
+				{
+					if (!claims.Contains(expectedClaim, ClaimEqualityComparer.Instance))
+					{
+						ThrowsIfNotSucceeded(await roleManager.AddClaimAsync(role, expectedClaim), logger);
+					}
+				}
+			}
+
+			role = await roleManager.FindByIdAsync(DwtRole.APP_ADMIN.Id);
+			if (role != null)
+			{
+				var claims = await roleManager.GetClaimsAsync(role);
+				var expectedClaims = new Claim[] { DwtIdentity.CLAIM_PERM_CREATE_APP, DwtIdentity.CLAIM_PERM_DELETE_APP, DwtIdentity.CLAIM_PERM_MODIFY_APP };
+				foreach (var expectedClaim in expectedClaims)
+				{
+					if (!claims.Contains(expectedClaim, ClaimEqualityComparer.Instance))
+					{
+						ThrowsIfNotSucceeded(await roleManager.AddClaimAsync(role, expectedClaim), logger);
+					}
+				}
+			}
 
 			logger.LogInformation("Ensuring admin user exist...");
 			var userManager = scope.ServiceProvider.GetRequiredService<UserManager<DwtUser>>();
@@ -145,7 +177,6 @@ sealed class IdentityInitializer(
 				adminUser = new DwtUser { Id = "admin", UserName = "admin@local", Email = "admin@local" };
 				ThrowsIfNotSucceeded(await userManager.CreateAsync(adminUser, generatedPassword), logger);
 				ThrowsIfNotSucceeded(await userManager.AddToRoleAsync(adminUser, DwtRole.ADMIN.Id), logger);
-				await dbContext.SaveChangesAsync(CancellationToken.None);
 			}
 		}
 	}

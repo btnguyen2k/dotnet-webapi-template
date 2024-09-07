@@ -65,7 +65,7 @@ sealed class IdentityUserEntityTypeConfiguration : IEntityTypeConfiguration<DwtU
 		builder.Property(t => t.UserName).HasColumnName("uname");
 		builder.Property(t => t.NormalizedUserName).HasColumnName("normalized_name");
 		builder.Property(t => t.Email).HasColumnName("uemail");
-		//builder.Property(t => t.NormalizedEmail).HasColumnName("normalized_email");
+		builder.Property(t => t.NormalizedEmail).HasColumnName("normalized_email");
 		//builder.Property(t => t.EmailConfirmed).HasColumnName("email_confirmed");
 		builder.Property(t => t.PasswordHash).HasColumnName("password_hash");
 		builder.Property(t => t.SecurityStamp).HasColumnName("security_stamp");
@@ -77,7 +77,10 @@ sealed class IdentityUserEntityTypeConfiguration : IEntityTypeConfiguration<DwtU
 		//builder.Property(t => t.LockoutEnabled).HasColumnName("lockout_enabled");
 		//builder.Property(t => t.AccessFailedCount).HasColumnName("access_failed_count");
 
-		builder.Ignore(t => t.NormalizedEmail);
+		// username and email should be unique
+		builder.HasIndex(t => t.NormalizedUserName).IsUnique();
+		builder.HasIndex(t => t.NormalizedEmail).IsUnique();
+
 		builder.Ignore(t => t.EmailConfirmed);
 		builder.Ignore(t => t.PhoneNumber);
 		builder.Ignore(t => t.PhoneNumberConfirmed);

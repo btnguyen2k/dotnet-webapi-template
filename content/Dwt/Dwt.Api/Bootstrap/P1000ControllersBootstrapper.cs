@@ -18,7 +18,7 @@ public class ControllersBootstrapper
 					return new BadRequestObjectResult(new ApiResp<object>
 					{
 						Status = 400,
-						Message = "Invalid model state.",
+						Message = "Bad request.",
 						Data = errors
 					});
 				};

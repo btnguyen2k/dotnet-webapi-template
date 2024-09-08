@@ -53,6 +53,8 @@ sealed class IdentityRoleClaimEntityTypeConfiguration : IEntityTypeConfiguration
 		builder.Property(t => t.RoleId).HasColumnName("role_id");
 		builder.Property(t => t.ClaimType).HasColumnName("claim_type");
 		builder.Property(t => t.ClaimValue).HasColumnName("claim_value");
+
+		builder.HasIndex(t => new { t.RoleId, t.ClaimType, t.ClaimValue }).IsUnique();
 	}
 }
 
@@ -100,6 +102,8 @@ sealed class IdentityUserClaimEntityTypeConfiguration : IEntityTypeConfiguration
 		builder.Property(t => t.UserId).HasColumnName("user_id");
 		builder.Property(t => t.ClaimType).HasColumnName("claim_type");
 		builder.Property(t => t.ClaimValue).HasColumnName("claim_value");
+
+		builder.HasIndex(t => new { t.UserId, t.ClaimType, t.ClaimValue }).IsUnique();
 	}
 }
 

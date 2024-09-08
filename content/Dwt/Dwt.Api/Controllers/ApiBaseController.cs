@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Dwt.Api.Services;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Dwt.Api.Controllers;
@@ -95,6 +96,34 @@ public abstract class ApiBaseController : ControllerBase
 	protected string? GetRequestUserId()
 	{
 		throw new NotImplementedException();
+	}
+
+	/// <summary>
+	/// Retrieve the auth token from the request headers.
+	/// </summary>
+	/// <returns></returns>
+	protected string? GetAuthToken()
+	{
+		return HttpContext.Request.Headers.Authorization.FirstOrDefault()?.Split(" ").Last();
+	}
+
+	/// <summary>
+	/// Convenience method to validate an auth token.
+	/// </summary>
+	/// <param name="authenticator"></param>
+	/// <param name="authenticatorAsync"></param>
+	/// <param name="token"></param>
+	/// <returns></returns>
+	/// <exception cref="ArgumentNullException"></exception>
+	protected async Task<TokenValidationResp> ValidateAuthTokenAsync(IAuthenticator? authenticator, IAuthenticatorAsync? authenticatorAsync, string token)
+	{
+		if (authenticator == null && authenticatorAsync == null)
+		{
+			throw new ArgumentNullException("No authenticator defined.", (Exception?)null);
+		}
+		return authenticatorAsync != null
+			? await authenticatorAsync.ValidateAsync(token)
+			: authenticator!.Validate(token);
 	}
 
 	/// <summary>

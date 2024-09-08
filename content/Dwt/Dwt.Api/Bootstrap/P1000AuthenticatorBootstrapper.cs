@@ -39,6 +39,12 @@ public class AuthenticatorBootstrapper
 		// Customize the behavior of the authorization middleware.
 		appBuilder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, SampleAuthorizationMiddlewareResultHandler>();
 
+		// Configurate authorization policies
+		appBuilder.Services.AddAuthorization(options =>
+		{
+			options.AddPolicy(DwtIdentity.POLICY_NAME_ADMIN_OR_CREATE_ACCOUNT_PERM, DwtIdentity.POLICY_ADMIN_OR_CREATE_ACCOUNT_PERM);
+		});
+
 		// setup IAuthenticator/IAuthenticatorAsync services
 		appBuilder.Services.AddSingleton<SampleJwtAuthenticator>()
 			.AddSingleton<IAuthenticator>(x => x.GetRequiredService<SampleJwtAuthenticator>())

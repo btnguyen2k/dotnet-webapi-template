@@ -30,6 +30,7 @@
 
   <ItemGroup>
     <Folder Include="Controllers\Samples\" />
+    <Folder Include="Middleware\" />
   </ItemGroup>
 
 </Project>

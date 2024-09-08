@@ -108,6 +108,8 @@ public class UsersController(IOptions<IdentityOptions> identityOptions, UserMana
 		});
 	}
 
+	/*----------------------------------------------------------------------*/
+
 	public struct ChangePwdReq
 	{
 		[JsonPropertyName("old_password")]
@@ -136,13 +138,11 @@ public class UsersController(IOptions<IdentityOptions> identityOptions, UserMana
 			throw new ArgumentNullException("No authenticator defined.", (Exception?)null);
 		}
 
-		var jwtToken = HttpContext.Request.Headers.Authorization.FirstOrDefault()?.Split(" ").Last()!;
-		var tokenValidationResult = authenticatorAsync != null
-			? await authenticatorAsync.ValidateAsync(jwtToken)
-			: authenticator?.Validate(jwtToken);
-		if (tokenValidationResult == null || tokenValidationResult.Status != 200)
+		var jwtToken = GetAuthToken();
+		var tokenValidationResult = await ValidateAuthTokenAsync(authenticator, authenticatorAsync, jwtToken!);
+		if (tokenValidationResult.Status != 200)
 		{
-			return ResponseNoData(403, tokenValidationResult != null ? tokenValidationResult.Error : "Could not validate authentication token.");
+			return ResponseNoData(403, tokenValidationResult.Error);
 		}
 
 		var userId = GetUserID(identityOptions.Value);
@@ -152,25 +152,84 @@ public class UsersController(IOptions<IdentityOptions> identityOptions, UserMana
 			return ResponseNoData(403, "Invalid user/password combination.");
 		}
 
-		if (await passwordValidator.ValidateAsync(userManager, user, req.NewPassword) != IdentityResult.Success)
+		var iresult = await passwordValidator.ValidateAsync(userManager, user, req.NewPassword);
+		if (iresult != IdentityResult.Success)
 		{
-			return ResponseNoData(400, "New password does not meet complexity requirements.");
+			return ResponseNoData(400, iresult.ToString());
 		}
 
-		var result = await userManager.ChangePasswordAsync(user, req.OldPassword, req.NewPassword);
-		if (result != IdentityResult.Success)
+		iresult = await userManager.ChangePasswordAsync(user, req.OldPassword, req.NewPassword);
+		if (iresult != IdentityResult.Success)
 		{
-			return ResponseNoData(500, "Failed to change password: " + result.Errors.FirstOrDefault()?.Description);
+			return ResponseNoData(500, iresult.ToString());
 		}
 
 		var refreshResult = authenticatorAsync != null
-			? await authenticatorAsync.RefreshAsync(jwtToken, true)
-			: authenticator?.Refresh(jwtToken, true);
+			? await authenticatorAsync.RefreshAsync(jwtToken!, true)
+			: authenticator?.Refresh(jwtToken!, true);
 
 		return ResponseOk(new ChangePwdResp
 		{
 			Message = "Password changed successfully.",
 			Token = refreshResult!.Token!, // changing password should invalidate all previous auth tokens
 		});
+	}
+
+	/*----------------------------------------------------------------------*/
+
+	public struct CreateUserReq
+	{
+		[JsonPropertyName("username")]
+		public string Username { get; set; }
+
+		[JsonPropertyName("password")]
+		public string Password { get; set; }
+
+		[JsonPropertyName("email")]
+		public string Email { get; set; }
+	}
+
+	public struct CreateUserResp
+	{
+		public string Message { get; set; }
+
+		public string Id { get; set; }
+	}
+
+	[HttpPost("/api/users")]
+	[Authorize(Policy = DwtIdentity.POLICY_NAME_ADMIN_OR_CREATE_ACCOUNT_PERM)]
+	public async Task<ActionResult<ApiResp<CreateUserResp>>> CreateUser(
+		[FromBody] CreateUserReq req,
+		UserManager<DwtUser> userManager,
+		IPasswordValidator<DwtUser> passwordValidator,
+		IAuthenticator? authenticator, IAuthenticatorAsync? authenticatorAsync)
+	{
+		if (authenticator == null && authenticatorAsync == null)
+		{
+			throw new ArgumentNullException("No authenticator defined.", (Exception?)null);
+		}
+
+		var jwtToken = GetAuthToken();
+		var tokenValidationResult = await ValidateAuthTokenAsync(authenticator, authenticatorAsync, jwtToken!);
+		if (tokenValidationResult.Status != 200)
+		{
+			return ResponseNoData(403, tokenValidationResult.Error);
+		}
+
+		if (await userManager.FindByNameAsync(req.Username) != null)
+		{
+			return ResponseNoData(400, $"User with username '{req.Username}' already exists.");
+		}
+		if (await userManager.FindByEmailAsync(req.Email) != null)
+		{
+			return ResponseNoData(400, $"User with email '{req.Email}' already exists.");
+		}
+
+		if (await passwordValidator.ValidateAsync(userManager, null, req.Password) != IdentityResult.Success)
+		{
+			return ResponseNoData(400, "Password does not meet complexity requirements.");
+		}
+
+		return ResponseOk();
 	}
 }

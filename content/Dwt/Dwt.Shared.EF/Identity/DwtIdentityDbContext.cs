@@ -7,7 +7,24 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace Dwt.Shared.EF.Identity;
 public class DwtIdentityDbContext : IdentityDbContext<DwtUser, DwtRole, string>
 {
-	public DwtIdentityDbContext(DbContextOptions<DwtIdentityDbContext> options) : base(options) { }
+	//private readonly ILogger<DwtIdentityDbContext> logger;
+
+	public DwtIdentityDbContext(DbContextOptions<DwtIdentityDbContext> options/*, ILogger<DwtIdentityDbContext> logger*/) : base(options)
+	{
+		//this.logger = logger;
+		//logger.LogCritical("DwtIdentityDbContext instances created.");
+		//ChangeTracker.DetectingEntityChanges += (sender, e) =>
+		//{
+		//	logger.LogError("Detected changes: {e}", e.Entry.ToString());
+		//};
+	}
+
+	//protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+	//{
+	//	base.OnConfiguring(optionsBuilder);
+	//}
+
+	private void ChangeTracker_DetectedAllChanges(object? sender, Microsoft.EntityFrameworkCore.ChangeTracking.DetectedChangesEventArgs e) => throw new NotImplementedException();
 
 	protected override void OnModelCreating(ModelBuilder modelBuilder)
 	{

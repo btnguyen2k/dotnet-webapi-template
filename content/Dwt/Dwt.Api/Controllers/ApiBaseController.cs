@@ -1,4 +1,5 @@
 ﻿using Dwt.Api.Services;
+using Dwt.Shared.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
@@ -124,6 +125,16 @@ public abstract class ApiBaseController : ControllerBase
 		return authenticatorAsync != null
 			? await authenticatorAsync.ValidateAsync(token)
 			: authenticator!.Validate(token);
+	}
+
+	/// <summary>
+	/// Get the current authenticated users.
+	/// </summary>
+	/// <returns></returns>
+	protected async Task<DwtUser?> GetUserAsync(IdentityOptions identityOptions, UserManager<DwtUser> userManager)
+	{
+		var userId = GetUserID(identityOptions);
+		return userId != null ? await userManager.FindByIdAsync(userId) : null;
 	}
 
 	/// <summary>

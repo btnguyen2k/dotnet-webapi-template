@@ -139,6 +139,7 @@ sealed class IdentityInitializer(
 			var role = await roleManager.FindByIdAsync(DwtRole.ACCOUNT_ADMIN.Id);
 			if (role != null)
 			{
+				// permissions setup for role ACCOUNT_ADMIN
 				var claims = await roleManager.GetClaimsAsync(role);
 				var expectedClaims = new Claim[] { DwtIdentity.CLAIM_PERM_CREATE_USER };
 				foreach (var expectedClaim in expectedClaims)
@@ -149,10 +150,10 @@ sealed class IdentityInitializer(
 					}
 				}
 			}
-
 			role = await roleManager.FindByIdAsync(DwtRole.APP_ADMIN.Id);
 			if (role != null)
 			{
+				// permissions setup for role APP_ADMIN
 				var claims = await roleManager.GetClaimsAsync(role);
 				var expectedClaims = new Claim[] { DwtIdentity.CLAIM_PERM_CREATE_APP, DwtIdentity.CLAIM_PERM_DELETE_APP, DwtIdentity.CLAIM_PERM_MODIFY_APP };
 				foreach (var expectedClaim in expectedClaims)
@@ -176,7 +177,7 @@ sealed class IdentityInitializer(
 
 				adminUser = new DwtUser { Id = "admin", UserName = "admin@local", Email = "admin@local" };
 				ThrowsIfNotSucceeded(await userManager.CreateAsync(adminUser, generatedPassword), logger);
-				ThrowsIfNotSucceeded(await userManager.AddToRoleAsync(adminUser, DwtRole.ADMIN.Id), logger);
+				ThrowsIfNotSucceeded(await userManager.AddToRoleAsync(adminUser, DwtRole.ADMIN.Name!), logger);
 			}
 		}
 	}

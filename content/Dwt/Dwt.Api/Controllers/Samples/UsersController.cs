@@ -28,8 +28,7 @@ public class UsersController(IOptions<IdentityOptions> identityOptions, UserMana
 	[Authorize]
 	public async Task<ActionResult<ApiResp<UserResponse>>> GetMyInfo()
 	{
-		var userId = GetUserID(identityOptions.Value);
-		var user = userManager.Users.FirstOrDefault(u => u.Id == userId);
+		var user = await GetUserAsync(identityOptions.Value, userManager);
 		if (user == null)
 		{
 			return _respAuthenticationRequired;
@@ -187,18 +186,14 @@ public class UsersController(IOptions<IdentityOptions> identityOptions, UserMana
 
 		[JsonPropertyName("email")]
 		public string Email { get; set; }
-	}
 
-	public struct CreateUserResp
-	{
-		public string Message { get; set; }
-
-		public string Id { get; set; }
+		[JsonPropertyName("roles")]
+		public IList<string>? Roles { get; set; }
 	}
 
 	[HttpPost("/api/users")]
 	[Authorize(Policy = DwtIdentity.POLICY_NAME_ADMIN_OR_CREATE_ACCOUNT_PERM)]
-	public async Task<ActionResult<ApiResp<CreateUserResp>>> CreateUser(
+	public async Task<ActionResult<ApiResp<UserResponse>>> CreateUser(
 		[FromBody] CreateUserReq req,
 		UserManager<DwtUser> userManager,
 		IPasswordValidator<DwtUser> passwordValidator,
@@ -216,6 +211,12 @@ public class UsersController(IOptions<IdentityOptions> identityOptions, UserMana
 			return ResponseNoData(403, tokenValidationResult.Error);
 		}
 
+		var iresult = await passwordValidator.ValidateAsync(userManager, null!, req.Password);
+		if (iresult != IdentityResult.Success)
+		{
+			return ResponseNoData(400, iresult.ToString());
+		}
+
 		if (await userManager.FindByNameAsync(req.Username) != null)
 		{
 			return ResponseNoData(400, $"User with username '{req.Username}' already exists.");
@@ -225,11 +226,53 @@ public class UsersController(IOptions<IdentityOptions> identityOptions, UserMana
 			return ResponseNoData(400, $"User with email '{req.Email}' already exists.");
 		}
 
-		if (await passwordValidator.ValidateAsync(userManager, null, req.Password) != IdentityResult.Success)
+		var currentUser = await GetUserAsync(identityOptions.Value, userManager);
+		if (currentUser == null)
 		{
-			return ResponseNoData(400, "Password does not meet complexity requirements.");
+			return _respAuthenticationRequired;
 		}
 
-		return ResponseOk();
+		if (req.Roles != null)
+		{
+			foreach (var role in req.Roles)
+			{
+				if (!DwtRole.ALL_ROLE_NAMES_NORMALIZED.Contains(role.ToUpper()))
+				{
+					return ResponseNoData(400, $"Invalid role '{role}'.");
+				}
+				if (role.Equals(DwtRole.ROLE_NAME_ADMIN, StringComparison.InvariantCultureIgnoreCase))
+				{
+					return ResponseNoData(400, $"Cannot create another user with role '{DwtRole.ROLE_NAME_ADMIN}'.");
+				}
+				if (role.Equals(DwtRole.ROLE_NAME_ACCOUNT_ADMIN, StringComparison.InvariantCultureIgnoreCase) &&
+					!await userManager.IsInRoleAsync(currentUser, DwtRole.ROLE_NAME_ADMIN))
+				{
+					return ResponseNoData(403, $"Donot have permission to create users with role '{DwtRole.ROLE_NAME_ACCOUNT_ADMIN}'.");
+				}
+			}
+		}
+
+		var newUser = new DwtUser { UserName = req.Username.ToLower(), Email = req.Email.ToLower() };
+		iresult = await userManager.CreateAsync(newUser, req.Password);
+		if (iresult != IdentityResult.Success)
+		{
+			return ResponseNoData(500, iresult.ToString());
+		}
+		if (req.Roles != null)
+		{
+			iresult = await userManager.AddToRolesAsync(newUser, req.Roles);
+			if (iresult != IdentityResult.Success)
+			{
+				return ResponseNoData(500, iresult.ToString());
+			}
+		}
+
+		return ResponseOk(new UserResponse
+		{
+			Id = newUser.Id,
+			Username = newUser.UserName!,
+			Email = newUser.Email!,
+			Roles = userManager.GetRolesAsync(newUser).Result
+		});
 	}
 }

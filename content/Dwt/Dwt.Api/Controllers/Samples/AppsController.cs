@@ -128,6 +128,7 @@ public class AppsController : ApiBaseController
 	/// <param name="authenticator"></param>
 	/// <param name="authenticatorAsync"></param>
 	/// <returns></returns>
+	/// <exception cref="ArgumentNullException"></exception>
 	[HttpDelete("/api/apps/{id}")]
 	[ProducesResponseType(StatusCodes.Status200OK)]
 	[Authorize(Policy = DwtIdentity.POLICY_NAME_ADMIN_OR_DELETE_APP_PERM)]
@@ -155,6 +156,65 @@ public class AppsController : ApiBaseController
 		if (!result)
 		{
 			return ResponseNoData(500, "Failed to delete application.");
+		}
+		return ResponseOk(ToAppResponse(app));
+	}
+
+	public struct UpdateAppReq
+	{
+		[JsonPropertyName("display_name")]
+		public string? DisplayName { get; set; }
+
+		[JsonPropertyName("public_key_pem")]
+		public string? PublicKeyPEM { get; set; }
+	}
+
+	/// <summary>
+	/// Updates an existing application.
+	/// </summary>
+	/// <param name="id"></param>
+	/// <param name="req"></param>
+	/// <param name="authenticator"></param>
+	/// <param name="authenticatorAsync"></param>
+	/// <returns></returns>
+	/// <exception cref="ArgumentNullException"></exception>
+	[HttpPut("/api/apps/{id}")]
+	[ProducesResponseType(StatusCodes.Status200OK)]
+	[Authorize(Policy = DwtIdentity.POLICY_NAME_ADMIN_OR_MODIFY_APP_PERM)]
+	public async Task<ActionResult<ApiResp<AppResponse>>> UpdateApp(string id, [FromBody] UpdateAppReq req,
+		IAuthenticator? authenticator, IAuthenticatorAsync? authenticatorAsync)
+	{
+		if (authenticator == null && authenticatorAsync == null)
+		{
+			throw new ArgumentNullException("No authenticator defined.", (Exception?)null);
+		}
+
+		var jwtToken = GetAuthToken();
+		var tokenValidationResult = await ValidateAuthTokenAsync(authenticator, authenticatorAsync, jwtToken!);
+		if (tokenValidationResult.Status != 200)
+		{
+			return ResponseNoData(403, tokenValidationResult.Error);
+		}
+
+		var app = await appRepo.GetByIDAsync(id);
+		if (app == null)
+		{
+			return _respNotFound;
+		}
+
+		if (req.DisplayName != null)
+		{
+			app.DisplayName = req.DisplayName;
+		}
+		if (req.PublicKeyPEM != null)
+		{
+			app.PublicKeyPEM = req.PublicKeyPEM;
+		}
+
+		var result = await appRepo.UpdateAsync(app);
+		if (!result)
+		{
+			return ResponseNoData(500, "Failed to update application.");
 		}
 		return ResponseOk(ToAppResponse(app));
 	}

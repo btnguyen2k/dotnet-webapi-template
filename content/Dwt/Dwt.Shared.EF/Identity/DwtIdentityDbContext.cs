@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Dwt.Shared.EF.Identity;
+
 public class DwtIdentityDbContext : IdentityDbContext<DwtUser, DwtRole, string>
 {
 	//private readonly ILogger<DwtIdentityDbContext> logger;
@@ -44,11 +45,6 @@ public class DwtIdentityDbContext : IdentityDbContext<DwtUser, DwtRole, string>
 
 /* Demostration of how to use the EntityTypeConfiguration classes to customize table and column names */
 
-sealed class Commons
-{
-	public const string TABLE_PREFIX = "dwt_";
-}
-
 sealed class RoleEntityTypeConfiguration : IEntityTypeConfiguration<DwtRole>
 {
 	public void Configure(EntityTypeBuilder<DwtRole> builder)
@@ -56,8 +52,8 @@ sealed class RoleEntityTypeConfiguration : IEntityTypeConfiguration<DwtRole>
 		builder.ToTable($"{Commons.TABLE_PREFIX}roles");
 		builder.Property(t => t.Id).HasColumnName("role_id");
 		builder.Property(t => t.Name).HasColumnName("role_name");
-		builder.Property(t => t.NormalizedName).HasColumnName("role_normalized_name");
-		builder.Property(t => t.ConcurrencyStamp).HasColumnName("role_concurrency_stamp");
+		builder.Property(t => t.NormalizedName).HasColumnName("normalized_name");
+		builder.Property(t => t.ConcurrencyStamp).HasColumnName("concurrency_stamp").IsConcurrencyToken();
 	}
 }
 
@@ -88,7 +84,7 @@ sealed class IdentityUserEntityTypeConfiguration : IEntityTypeConfiguration<DwtU
 		//builder.Property(t => t.EmailConfirmed).HasColumnName("email_confirmed");
 		builder.Property(t => t.PasswordHash).HasColumnName("password_hash");
 		builder.Property(t => t.SecurityStamp).HasColumnName("security_stamp");
-		builder.Property(t => t.ConcurrencyStamp).HasColumnName("concurrency_stamp");
+		builder.Property(t => t.ConcurrencyStamp).HasColumnName("concurrency_stamp").IsConcurrencyToken();
 		//builder.Property(t => t.PhoneNumber).HasColumnName("phone_number");
 		//builder.Property(t => t.PhoneNumberConfirmed).HasColumnName("phone_number_confirmed");
 		//builder.Property(t => t.TwoFactorEnabled).HasColumnName("two_factor_enabled");

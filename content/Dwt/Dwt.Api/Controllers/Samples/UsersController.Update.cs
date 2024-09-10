@@ -19,7 +19,7 @@ public partial class UsersController : ApiBaseController
 	}
 
 	/// <summary>
-	/// Update an existing user's profile (email, roles).
+	/// Updates an existing user's profile (email, roles).
 	/// </summary>
 	/// <param name="req"></param>
 	/// <param name="uid"></param>

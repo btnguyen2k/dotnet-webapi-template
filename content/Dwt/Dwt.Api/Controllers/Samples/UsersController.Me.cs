@@ -50,7 +50,7 @@ public partial class UsersController : ApiBaseController
 	}
 
 	/// <summary>
-	/// Change the currently signed-in user's password.
+	/// Changes the currently signed-in user's password.
 	/// </summary>
 	/// <param name="req"></param>
 	/// <param name="passwordValidator"></param>

@@ -34,6 +34,37 @@ public class DwtIdentity
 			return hasAdminRole || hasCreateUserPerm;
 		})
 		.Build();
+
+	public const string POLICY_NAME_ADMIN_OR_CREATE_APP_PERM = "AdminOrCreateAppPermission";
+	public static readonly AuthorizationPolicy POLICY_ADMIN_OR_CREATE_APP_PERM = new AuthorizationPolicyBuilder()
+		.RequireAuthenticatedUser()
+		.RequireAssertion(context =>
+		{
+			var hasAdminRole = context.User.IsInRole(DwtRole.ROLE_NAME_ADMIN);
+			var hasCreateUserPerm = context.User.HasClaim(CLAIM_PERM_CREATE_APP.Type, CLAIM_PERM_CREATE_APP.Value);
+			return hasAdminRole || hasCreateUserPerm;
+		})
+		.Build();
+	public const string POLICY_NAME_ADMIN_OR_DELETE_APP_PERM = "AdminOrDeleteAppPermission";
+	public static readonly AuthorizationPolicy POLICY_ADMIN_OR_DELETE_APP_PERM = new AuthorizationPolicyBuilder()
+		.RequireAuthenticatedUser()
+		.RequireAssertion(context =>
+		{
+			var hasAdminRole = context.User.IsInRole(DwtRole.ROLE_NAME_ADMIN);
+			var hasCreateUserPerm = context.User.HasClaim(CLAIM_PERM_DELETE_APP.Type, CLAIM_PERM_DELETE_APP.Value);
+			return hasAdminRole || hasCreateUserPerm;
+		})
+		.Build();
+	public const string POLICY_NAME_ADMIN_OR_MODIFY_APP_PERM = "AdminOrModifyAppPermission";
+	public static readonly AuthorizationPolicy POLICY_ADMIN_OR_MODIFY_APP_PERM = new AuthorizationPolicyBuilder()
+		.RequireAuthenticatedUser()
+		.RequireAssertion(context =>
+		{
+			var hasAdminRole = context.User.IsInRole(DwtRole.ROLE_NAME_ADMIN);
+			var hasCreateUserPerm = context.User.HasClaim(CLAIM_PERM_MODIFY_APP.Type, CLAIM_PERM_MODIFY_APP.Value);
+			return hasAdminRole || hasCreateUserPerm;
+		})
+		.Build();
 }
 
 public class ClaimEqualityComparer : IEqualityComparer<Claim>

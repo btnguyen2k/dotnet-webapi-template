@@ -26,7 +26,7 @@ public partial class UsersController : ApiBaseController
 	}
 
 	/// <summary>
-	/// Create a new user account.
+	/// Creates a new user account.
 	/// </summary>
 	/// <param name="req"></param>
 	/// <param name="userManager"></param>

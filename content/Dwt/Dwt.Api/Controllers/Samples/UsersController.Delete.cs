@@ -9,7 +9,7 @@ namespace Dwt.Api.Controllers.Samples;
 public partial class UsersController : ApiBaseController
 {
 	/// <summary>
-	/// Delete an existing user account.
+	/// Deletes an existing user account.
 	/// </summary>
 	/// <param name="uid"></param>
 	/// <param name="userManager"></param>

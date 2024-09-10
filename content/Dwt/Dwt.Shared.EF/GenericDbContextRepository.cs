@@ -6,9 +6,10 @@ namespace Dwt.Shared.EF;
 /// <summary>
 /// (Sample) An abstract EF-implementation of IGenericRepository.
 /// </summary>
-public abstract class GenericRepository<T, TEntity>(DbContextOptions<T> options) : DbContext(options), IGenericRepository<TEntity>
+public abstract class GenericDbContextRepository<T, TEntity, TKey>(DbContextOptions<T> options) : DbContext(options), IGenericRepository<TEntity, TKey>
 	where T : DbContext
 	where TEntity : class, new()
+	where TKey : IEquatable<TKey>
 {
 	protected DbSet<TEntity> DbSet { get; set; } = null!;
 
@@ -21,7 +22,7 @@ public abstract class GenericRepository<T, TEntity>(DbContextOptions<T> options)
 	}
 
 	/// <inheritdoc/>
-	public TEntity? GetByID(string id) => DbSet.Find(id);
+	public TEntity? GetByID(TKey id) => DbSet.Find(id);
 
 	/// <inheritdoc/>
 	public IEnumerable<TEntity> GetAll() => DbSet;
@@ -49,7 +50,7 @@ public abstract class GenericRepository<T, TEntity>(DbContextOptions<T> options)
 	}
 
 	/// <inheritdoc/>
-	public ValueTask<TEntity?> GetByIDAsync(string id) => DbSet.FindAsync(id);
+	public async ValueTask<TEntity?> GetByIDAsync(TKey id) => await DbSet.FindAsync(id);
 
 	/// <inheritdoc/>
 	public IAsyncEnumerable<TEntity> GetAllAsync() => DbSet.AsAsyncEnumerable();

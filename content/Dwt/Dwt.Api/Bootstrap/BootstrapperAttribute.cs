@@ -1,6 +1,5 @@
 ﻿namespace Dwt.Api.Bootstrap;
 
-
 /// <summary>
 /// Class-level attribute to mark a class as a bootstrapper.
 /// </summary>

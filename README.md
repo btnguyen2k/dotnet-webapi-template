@@ -9,8 +9,8 @@ Template to quickly spin up a .NET Web API project.
 ## Features
 
 - Skeleton to quickly build RESTful APIs with .NET:
-  - Suthentication and authorization using JWT.
   - JSON for input and output.
+  - Authentication and authorization using JWT with ASP.NET Core Identity.
   - Included sample Database access using [Entity Framework](https://learn.microsoft.com/en-us/ef/core/).
 - Sample files included: README, LICENSE, RELEASE-NOTES, and `.gitignore`.
 - GitHub Actions integrated:

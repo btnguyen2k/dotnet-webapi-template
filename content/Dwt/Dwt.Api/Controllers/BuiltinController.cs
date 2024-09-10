@@ -3,7 +3,6 @@ using Dwt.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace Dwt.Api.Controllers;

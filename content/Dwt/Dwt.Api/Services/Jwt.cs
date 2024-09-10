@@ -1,9 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore.Metadata.Internal;
-using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Security.Cryptography;
 
 namespace Dwt.Api.Services;
 
@@ -33,6 +31,8 @@ public class JwtOptions
 	/// The default expiration time for JWT tokens in seconds.
 	/// </summary>
 	public int DefaultExpirationSeconds { get; set; } = 3600;
+
+	public TokenValidationParameters TokenValidationParameters { get; set; } = default!;
 }
 
 public interface IJwtService
@@ -128,18 +128,7 @@ public class JwtService : IJwtService
 	/// <inheritdoc />
 	public ClaimsPrincipal ValidateToken(string token)
 	{
-		return ValidateToken(token, new TokenValidationParameters
-		{
-			ValidateIssuerSigningKey = true,
-			IssuerSigningKey = _options.Key,
-			ValidateIssuer = false,
-			ValidateAudience = false,
-			ClockSkew = TimeSpan.Zero,
-			//ValidateIssuer = true,
-			//ValidIssuer = Issuer,
-			//ValidateAudience = true,
-			//ValidAudience = Audience,
-		});
+		return ValidateToken(token, _options.TokenValidationParameters);
 	}
 
 	/// <inheritdoc />

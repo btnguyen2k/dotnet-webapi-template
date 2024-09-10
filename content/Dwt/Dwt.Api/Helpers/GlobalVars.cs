@@ -38,3 +38,11 @@ public static class GlobalVars
 	/// </summary>
 	public const string ENV_INIT_DB = "INIT_DB";
 }
+
+public enum DbType
+{
+	NULL,
+	INMEMORY, MEMORY,
+	SQLITE,
+	SQLSERVER,
+}

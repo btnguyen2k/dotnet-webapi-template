@@ -1,5 +1,4 @@
-﻿using Dwt.Api.Middleware.JwtIdentity;
-using Dwt.Api.Services;
+﻿using Dwt.Api.Services;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -32,6 +31,7 @@ public class JwtBootstrapper
 		var key = config["Jwt:Key"]?.Trim() ?? "";
 		if (string.IsNullOrEmpty(key))
 		{
+			logger.LogInformation("No JWT key defined. Using RSA private key to sign JWT.");
 			// JWT signing key is not defined, use RSA private key to sign JWT
 			ArgumentNullException.ThrowIfNull(cryptoOptions.Value, nameof(cryptoOptions.Value));
 			ArgumentNullException.ThrowIfNull(cryptoOptions.Value.RSAPrivKey, "RSA Private key");
@@ -41,6 +41,7 @@ public class JwtBootstrapper
 		}
 		else
 		{
+			logger.LogInformation("Using JWT key to sign JWT.");
 			// JWT signing key is defined, use it to sign JWT
 			jwtKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
 			jwtAlgorithm = SecurityAlgorithms.HmacSha256;
@@ -54,16 +55,24 @@ public class JwtBootstrapper
 			options.Issuer = jwtIssuer;
 			options.Audience = jetAudience;
 			options.DefaultExpirationSeconds = jwtDefaultExpirationSeconds;
+			options.TokenValidationParameters = new TokenValidationParameters
+			{
+				IssuerSigningKey = jwtKey,
+				ValidateIssuerSigningKey = true,
+				ValidateTokenReplay = false,
+				ValidateIssuer = false,
+				ValidateAudience = false,
+				ClockSkew = TimeSpan.Zero,
+				//ValidateIssuer = true,
+				//ValidIssuer = Issuer,
+				//ValidateAudience = true,
+				//ValidAudience = Audience,
+			};
 		});
 
 		// register JwtService in the service container
 		appBuilder.Services.AddSingleton<IJwtService, JwtService>();
 
 		logger.LogInformation("JWT initialized.");
-	}
-
-	public static void DecorateApp(WebApplication app)
-	{
-		app.UseMiddleware<JwtIdentityMiddleware>();
 	}
 }

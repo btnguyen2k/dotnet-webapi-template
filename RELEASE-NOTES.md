@@ -1,5 +1,13 @@
 # .NET WebAPI Template release notes
 
+## 2024-09-10 - v1.1.0
+
+### Added/Refactoring
+
+- Feature: applying ASP.NET Core Identity.
+- Refactored API authorization to utilize ASP.NET Core Identity.
+- Added sample API controllers to manage users and applications.
+
 ## 2024-09-01 - v1.0.0
 
 ### Changes

@@ -1,78 +1,52 @@
-﻿using Dwt.Api.Helpers;
-using Dwt.Api.Middleware.JwtIdentity;
-using Dwt.Shared.Models;
+﻿using Dwt.Shared.Identity;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
 namespace Dwt.Api.Controllers.Samples;
 
-public class UsersController(IUserRepository userRepo) : ApiBaseController
+public partial class UsersController : ApiBaseController
 {
-	/// <summary>
-	/// Fetches all users.
-	/// </summary>
-	/// <returns></returns>
-	/// <remarks>Only ADMIN role can see all users.</remarks>
-	[HttpGet("/api/users")]
-	[JwtAuthorize(Roles = "ADMIN")]
-	public ActionResult<ApiResp<User>> GetAll()
+	protected readonly IdentityOptions identityOptions;
+	protected readonly UserManager<DwtUser> userManager;
+
+	public UsersController(IOptions<IdentityOptions> identityOptions, UserManager<DwtUser> userManager)
 	{
-		return ResponseOk(userRepo.GetAll());
+		ArgumentNullException.ThrowIfNull(identityOptions, nameof(identityOptions));
+		ArgumentNullException.ThrowIfNull(userManager, nameof(userManager));
+
+		this.identityOptions = identityOptions.Value;
+		this.userManager = userManager;
 	}
 
-	/// <summary>
-	/// Fetches a user by ID.
-	/// </summary>
-	/// <param name="id"></param>
-	/// <returns></returns>
-	/// <remarks>
-	/// - Users can only see their own information.
-	/// - ADMIN role can see all users.
-	/// </remarks>
-	[HttpGet("/api/users/{id}")]
-	[JwtAuthorize]
-	public ActionResult<ApiResp<User>> GetByID(string id)
+	public struct UserResponse
 	{
-		var user = userRepo.GetByID(id);
-		if (user == null)
-		{
-			return _respNotFound;
-		}
-
-		var requestUser = userRepo.GetByID(GetRequestUserId() ?? "");
-		if (requestUser == null)
-		{
-			//should not happen
-			return _respAuthenticationRequired;
-		}
-
-		if (!requestUser.HasRole("ADMIN") && requestUser.Id != user.Id)
-		{
-			// return "Not Found" in this case to avoid leaking the fact that the user exists
-			// return _respAccessDenied;
-			return _respNotFound;
-		}
-
-		return ResponseOk(user);
+		public string Id { get; set; }
+		public string Username { get; set; }
+		public string Email { get; set; }
+		public IList<string> Roles { get; set; }
 	}
 
-	/// <summary>
-	/// Returns current user's information.
-	/// </summary>
-	/// <returns></returns>
-	[HttpGet("/api/users/-me")]
-	[JwtAuthorize]
-	public ActionResult<ApiResp<User>> GetMyInfo()
+	private async Task<ObjectResult?> ValidateRoles(DwtUser currentUser, IEnumerable<string> reqRoles)
 	{
-		var userId = GetRequestUserId();
-		var user = userRepo.GetByID(userId ?? "");
-		if (user == null)
+		foreach (var role in reqRoles)
 		{
-			return _respAuthenticationRequired;
+			if (!DwtRole.ALL_ROLE_NAMES_NORMALIZED.Contains(role.ToUpper()))
+			{
+				return ResponseNoData(400, $"Invalid role '{role}'.");
+			}
+			if (role.Equals(DwtRole.ROLE_NAME_ADMIN, StringComparison.InvariantCultureIgnoreCase))
+			{
+				return ResponseNoData(400, $"Cannot create/add another user with/to role '{DwtRole.ROLE_NAME_ADMIN}'.");
+			}
+			if (role.Equals(DwtRole.ROLE_NAME_ACCOUNT_ADMIN, StringComparison.InvariantCultureIgnoreCase) &&
+				!await userManager.IsInRoleAsync(currentUser, DwtRole.ROLE_NAME_ADMIN))
+			{
+				// only ADMIN can create/add users with role ACCOUNT_ADMIN
+				return ResponseNoData(403, $"Donot have permission to create/add users with/to role '{DwtRole.ROLE_NAME_ACCOUNT_ADMIN}'.");
+			}
 		}
 
-		return ResponseOk(user);
+		return null;
 	}
-
-	/* User list is immutable, can not add/remove/update users for now */
 }

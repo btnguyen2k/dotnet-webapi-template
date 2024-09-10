@@ -7,6 +7,9 @@ namespace Dwt.Api.Bootstrap;
 /// <summary>
 /// Built-in bootstrapper that initializes Swagger/OpenAPI services and UI.
 /// </summary>
+/// <remarks>
+///		Swagger should be setup after all controllers are registered and mapped.
+/// </remarks>
 [Bootstrapper(Priority = 2000)]
 public class SwaggerBootstrapper
 {

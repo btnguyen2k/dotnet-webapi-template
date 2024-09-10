@@ -4,26 +4,25 @@
 /// Generic interface for repositories.
 /// </summary>
 /// <typeparam name="T"></typeparam>
-public interface IGenericRepository<T> where T : class, new()
+public interface IGenericRepository<TEntity, TKey> where TEntity : class, new() where TKey : IEquatable<TKey>
 {
-    T Create(T t);
+	TEntity Create(TEntity t);
 
-    T? GetByID(string id);
+	TEntity? GetByID(TKey id);
 
-    IEnumerable<T> GetAll();
+	IEnumerable<TEntity> GetAll();
 
-    bool Update(T t);
+	bool Update(TEntity t);
 
-	bool Delete(T t);
+	bool Delete(TEntity t);
 
+	ValueTask<TEntity> CreateAsync(TEntity t);
 
-	ValueTask<T> CreateAsync(T t);
+	ValueTask<TEntity?> GetByIDAsync(TKey id);
 
-    ValueTask<T?> GetByIDAsync(string id);
+	IAsyncEnumerable<TEntity> GetAllAsync();
 
-    IAsyncEnumerable<T> GetAllAsync();
+	ValueTask<bool> UpdateAsync(TEntity t);
 
-    ValueTask<bool> UpdateAsync(T t);
-
-    ValueTask<bool> DeleteAsync(T t);
+	ValueTask<bool> DeleteAsync(TEntity t);
 }

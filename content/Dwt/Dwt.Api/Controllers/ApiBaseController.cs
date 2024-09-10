@@ -1,4 +1,6 @@
-﻿using Dwt.Api.Helpers;
+﻿using Dwt.Api.Services;
+using Dwt.Shared.Identity;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Dwt.Api.Controllers;
@@ -14,23 +16,11 @@ namespace Dwt.Api.Controllers;
 [Consumes("application/json")]
 public abstract class ApiBaseController : ControllerBase
 {
-	private readonly string _userIdKey;
-
-	public ApiBaseController()
-	{
-        _userIdKey= GlobalVars.App?.Configuration["Jwt:HTTP_CTX_ITEM_USERID"] ?? GlobalVars.HTTP_CTX_ITEM_USERID_DEFAULT;
-    }
-
-	public ApiBaseController(IConfiguration config)
-	{
-        _userIdKey = config["Jwt:HTTP_CTX_ITEM_USERID"] ?? GlobalVars.HTTP_CTX_ITEM_USERID_DEFAULT;
-    }
-
-    /// <summary>
-    /// Convenience method to return a 200 OK response.
-    /// </summary>
-    /// <returns></returns>
-    protected static ObjectResult ResponseOk() => ResponseOk<object>(null);
+	/// <summary>
+	/// Convenience method to return a 200 OK response.
+	/// </summary>
+	/// <returns></returns>
+	protected static ObjectResult ResponseOk() => ResponseOk<object>(null);
 
 	/// <summary>
 	/// Generic response for "200 OK".
@@ -106,7 +96,64 @@ public abstract class ApiBaseController : ControllerBase
 	/// <returns></returns>
 	protected string? GetRequestUserId()
 	{
-		HttpContext.Items.TryGetValue(_userIdKey, out var userId);
-		return userId?.ToString();
+		throw new NotImplementedException();
+	}
+
+	/// <summary>
+	/// Retrieve the auth token from the request headers.
+	/// </summary>
+	/// <returns></returns>
+	protected string? GetAuthToken()
+	{
+		return HttpContext.Request.Headers.Authorization.FirstOrDefault()?.Split(" ").Last();
+	}
+
+	/// <summary>
+	/// Convenience method to validate an auth token.
+	/// </summary>
+	/// <param name="authenticator"></param>
+	/// <param name="authenticatorAsync"></param>
+	/// <param name="token"></param>
+	/// <returns></returns>
+	/// <exception cref="ArgumentNullException"></exception>
+	protected async Task<TokenValidationResp> ValidateAuthTokenAsync(IAuthenticator? authenticator, IAuthenticatorAsync? authenticatorAsync, string token)
+	{
+		if (authenticator == null && authenticatorAsync == null)
+		{
+			throw new ArgumentNullException("No authenticator defined.", (Exception?)null);
+		}
+		return authenticatorAsync != null
+			? await authenticatorAsync.ValidateAsync(token)
+			: authenticator!.Validate(token);
+	}
+
+	/// <summary>
+	/// Get the current authenticated users.
+	/// </summary>
+	/// <returns></returns>
+	protected async Task<DwtUser?> GetUserAsync(IdentityOptions identityOptions, UserManager<DwtUser> userManager)
+	{
+		var userId = GetUserID(identityOptions);
+		return userId != null ? await userManager.FindByIdAsync(userId) : null;
+	}
+
+	/// <summary>
+	/// Get the attached user-id from the http-context.
+	/// </summary>
+	/// <param name="opts"></param>
+	/// <returns></returns>
+	protected string? GetUserID(IdentityOptions opts)
+	{
+		return HttpContext.User.Claims.FirstOrDefault(c => c.Type == opts.ClaimsIdentity.UserIdClaimType)?.Value;
+	}
+
+	/// <summary>
+	/// Get the attached user-name from the http-context.
+	/// </summary>
+	/// <param name="opts"></param>
+	/// <returns></returns>
+	protected string? GetUserName(IdentityOptions opts)
+	{
+		return HttpContext.User.Claims.FirstOrDefault(c => c.Type == opts.ClaimsIdentity.UserNameClaimType)?.Value;
 	}
 }

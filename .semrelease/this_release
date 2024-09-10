@@ -1,3 +1,3 @@
-# This file has been cleaned up post-releasing version 1.0.0.
+# This file has been cleaned up post-releasing version 1.1.0.
 # Generate its content quickly using the following command:
 #   git log origin..HEAD | grep "^\s" > .semrelease/this_release

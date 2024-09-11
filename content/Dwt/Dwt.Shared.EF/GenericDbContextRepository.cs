@@ -14,7 +14,7 @@ public abstract class GenericDbContextRepository<T, TEntity, TKey>(DbContextOpti
 	protected DbSet<TEntity> DbSet { get; set; } = null!;
 
 	/// <inheritdoc/>
-	public TEntity Create(TEntity t)
+	public virtual TEntity Create(TEntity t)
 	{
 		var result = DbSet.Add(t);
 		SaveChanges();
@@ -22,27 +22,27 @@ public abstract class GenericDbContextRepository<T, TEntity, TKey>(DbContextOpti
 	}
 
 	/// <inheritdoc/>
-	public TEntity? GetByID(TKey id) => DbSet.Find(id);
+	public virtual TEntity? GetByID(TKey id) => DbSet.Find(id);
 
 	/// <inheritdoc/>
-	public IEnumerable<TEntity> GetAll() => DbSet;
+	public virtual IEnumerable<TEntity> GetAll() => DbSet;
 
 	/// <inheritdoc/>
-	public bool Update(TEntity t)
+	public virtual bool Update(TEntity t)
 	{
 		DbSet.Update(t);
 		return SaveChanges() > 0;
 	}
 
 	/// <inheritdoc/>
-	public bool Delete(TEntity t)
+	public virtual bool Delete(TEntity t)
 	{
 		DbSet.Remove(t);
 		return SaveChanges() > 0;
 	}
 
 	/// <inheritdoc/>
-	public async ValueTask<TEntity> CreateAsync(TEntity t)
+	public virtual async ValueTask<TEntity> CreateAsync(TEntity t)
 	{
 		var result = await DbSet.AddAsync(t);
 		await SaveChangesAsync();
@@ -50,20 +50,20 @@ public abstract class GenericDbContextRepository<T, TEntity, TKey>(DbContextOpti
 	}
 
 	/// <inheritdoc/>
-	public async ValueTask<TEntity?> GetByIDAsync(TKey id) => await DbSet.FindAsync(id);
+	public virtual async ValueTask<TEntity?> GetByIDAsync(TKey id) => await DbSet.FindAsync(id);
 
 	/// <inheritdoc/>
-	public IAsyncEnumerable<TEntity> GetAllAsync() => DbSet.AsAsyncEnumerable();
+	public virtual IAsyncEnumerable<TEntity> GetAllAsync() => DbSet.AsAsyncEnumerable();
 
 	/// <inheritdoc/>
-	public async ValueTask<bool> UpdateAsync(TEntity t)
+	public virtual async ValueTask<bool> UpdateAsync(TEntity t)
 	{
 		DbSet.Update(t);
 		return await SaveChangesAsync(CancellationToken.None) > 0;
 	}
 
 	/// <inheritdoc/>
-	public async ValueTask<bool> DeleteAsync(TEntity t)
+	public virtual async ValueTask<bool> DeleteAsync(TEntity t)
 	{
 		DbSet.Remove(t);
 		return await SaveChangesAsync(CancellationToken.None) > 0;

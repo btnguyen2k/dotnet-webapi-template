@@ -39,13 +39,14 @@ public class IdentityBootstrapper
 {
 	public static void ConfigureBuilder(WebApplicationBuilder appBuilder)
 	{
+		const string CONF_DB_TYPE = "DatabaseTypes:Identity";
 		var logger = LoggerFactory.Create(b => b.AddConsole()).CreateLogger<IdentityBootstrapper>();
 		logger.LogInformation("Configuring Identity services...");
 
-		Enum.TryParse<DbType>(appBuilder.Configuration["DatabaseTypes:Identity"], true, out var dbType);
+		Enum.TryParse<DbType>(appBuilder.Configuration[CONF_DB_TYPE], true, out var dbType);
 		if (dbType == DbType.NULL)
 		{
-			logger.LogWarning("No value found at key DatabaseTypes:Identity in the configurations. Defaulting to INMEMORY.");
+			logger.LogWarning("No value found at key {conf} in the configurations. Defaulting to INMEMORY.", CONF_DB_TYPE);
 			dbType = DbType.INMEMORY;
 		}
 
@@ -55,7 +56,7 @@ public class IdentityBootstrapper
 			{
 				options.EnableDetailedErrors().EnableSensitiveDataLogging();
 			}
-			var connStr = appBuilder.Configuration.GetConnectionString("Identity") ?? "";
+			var connStr = appBuilder.Configuration.GetConnectionString("IdentityDbContext") ?? "";
 			switch (dbType)
 			{
 				case DbType.INMEMORY or DbType.MEMORY:
@@ -68,7 +69,7 @@ public class IdentityBootstrapper
 					options.UseSqlServer(connStr);
 					break;
 				default:
-					throw new InvalidDataException($"Invalid value at key DatabaseTypes:Identity in the configurations: '{dbType}'.");
+					throw new InvalidDataException($"Invalid value at key {CONF_DB_TYPE} in the configurations: '{dbType}'.");
 			}
 		});
 

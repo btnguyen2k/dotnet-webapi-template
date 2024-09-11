@@ -46,3 +46,10 @@ public enum DbType
 	SQLITE,
 	SQLSERVER,
 }
+
+public enum CacheType
+{
+	NULL,
+	INMEMORY, MEMORY,
+	REDIS,
+}

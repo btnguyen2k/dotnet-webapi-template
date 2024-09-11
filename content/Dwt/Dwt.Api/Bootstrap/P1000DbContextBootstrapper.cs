@@ -23,14 +23,15 @@ public class DbContextBootstrapper
 				options.EnableDetailedErrors().EnableSensitiveDataLogging();
 			}
 
-			Enum.TryParse<DbType>(appBuilder.Configuration["DatabaseTypes:Application"], true, out var dbType);
+			const string CONF_DB_TYPE = "DatabaseTypes:Application";
+			Enum.TryParse<DbType>(appBuilder.Configuration[CONF_DB_TYPE], true, out var dbType);
 			if (dbType == DbType.NULL)
 			{
-				logger.LogWarning("No value found at key DatabaseTypes:Application in the configurations. Defaulting to INMEMORY.");
+				logger.LogWarning("No value found at key {conf} in the configurations. Defaulting to INMEMORY.", CONF_DB_TYPE);
 				dbType = DbType.INMEMORY;
 			}
 
-			var connStr = appBuilder.Configuration.GetConnectionString("Application") ?? "";
+			var connStr = appBuilder.Configuration.GetConnectionString("ApplicationDbContext") ?? "";
 			switch (dbType)
 			{
 				case DbType.INMEMORY or DbType.MEMORY:
@@ -43,7 +44,7 @@ public class DbContextBootstrapper
 					options.UseSqlServer(connStr);
 					break;
 				default:
-					throw new InvalidDataException($"Invalid value at key DatabaseTypes:Application in the configurations: '{dbType}'.");
+					throw new InvalidDataException($"Invalid value at key {CONF_DB_TYPE} in the configurations: '{dbType}'.");
 			}
 		});
 

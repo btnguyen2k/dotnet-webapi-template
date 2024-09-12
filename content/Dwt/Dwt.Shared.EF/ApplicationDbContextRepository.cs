@@ -22,18 +22,22 @@ public sealed class ApplicationDbContextRepository
 
 		ChangeTracker.StateChanged += async (sender, args) =>
 		{
-			if (args.Entry.Entity is Application app && cache != null)
+			logger.LogDebug("State changed - {entity}: {state}", args.Entry.Entity.GetType().FullName, args.Entry.State);
+			if (args.Entry.Entity is Application app)
 			{
-				logger.LogDebug("State changed: {state}", args.Entry.State);
 				switch (args.Entry.State)
 				{
-					case EntityState.Added:
-					case EntityState.Modified:
-					case EntityState.Unchanged:
-						await cache.SetAsync(app.Id, app, default!);
+					case EntityState.Added or EntityState.Modified or EntityState.Unchanged:
+						if (args.Entry.State != EntityState.Unchanged)
+						{
+							app.Touch();
+						}
+						if (cache != null)
+							await cache.SetAsync(app.Id, app, default!);
 						break;
 					default:
-						await cache.RemoveAsync(app.Id);
+						if (cache != null)
+							await cache.RemoveAsync(app.Id);
 						break;
 				}
 			}

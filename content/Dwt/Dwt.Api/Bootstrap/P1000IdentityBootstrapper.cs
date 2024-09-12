@@ -72,12 +72,6 @@ public class IdentityBootstrapper
 					{
 						throw new InvalidDataException($"No connection string {dbConf.ConnectionString} defined in the ConnectionStrings section in the configurations.");
 					}
-
-					if (appBuilder.Environment.IsDevelopment())
-					{
-						logger.LogDebug("Using connection string {connStr} for {dbType} database.", connStr, dbConf.Type);
-					}
-
 					if (dbConf.Type == DbType.SQLITE)
 						options.UseSqlite(connStr);
 					else if (dbConf.Type == DbType.SQLSERVER)

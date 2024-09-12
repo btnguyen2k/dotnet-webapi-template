@@ -19,6 +19,7 @@ public class CacheFacade<TCategory> : ICacheFacade<TCategory>
 	private readonly ICacheEntrySerializer serializer;
 	private readonly DistributedCacheEntryOptions defaultOptions;
 	private readonly ICompressor compressor;
+	private readonly string keyPrefix;
 
 	public CacheFacade(IDistributedCache distributedCache) : this(distributedCache, CacheFacadeOptions.DEFAULT) { }
 
@@ -34,19 +35,20 @@ public class CacheFacade<TCategory> : ICacheFacade<TCategory>
 			: options.CompressionLevel == CompressionLevel.Fastest || options.CompressionLevel == CompressionLevel.Optimal
 				? new BrotliCompressor(options.CompressionLevel)
 				: new DeflateCompressor(options.CompressionLevel);
+		this.keyPrefix = options?.KeyPrefix ?? "";
 	}
 
 	/// <inheritdoc/>
 	public byte[]? Get(string key)
 	{
-		var cached = dcache.Get(key);
+		var cached = dcache.Get($"{keyPrefix}{key}");
 		return cached == null ? null : compressor.DecompressAsync(cached).Result;
 	}
 
 	/// <inheritdoc/>
 	public async Task<byte[]?> GetAsync(string key, CancellationToken token = default)
 	{
-		var cached = await dcache.GetAsync(key, token);
+		var cached = await dcache.GetAsync($"{keyPrefix}{key}", token);
 		return cached == null ? null : await compressor.DecompressAsync(cached, token);
 	}
 
@@ -67,37 +69,37 @@ public class CacheFacade<TCategory> : ICacheFacade<TCategory>
 	/// <inheritdoc/>
 	public void Refresh(string key)
 	{
-		dcache.Refresh(key);
+		dcache.Refresh($"{keyPrefix}{key}");
 	}
 
 	/// <inheritdoc/>
 	public async Task RefreshAsync(string key, CancellationToken token = default)
 	{
-		await dcache.RefreshAsync(key, token);
+		await dcache.RefreshAsync($"{keyPrefix}{key}", token);
 	}
 
 	/// <inheritdoc/>
 	public void Remove(string key)
 	{
-		dcache.Remove(key);
+		dcache.Remove($"{keyPrefix}{key}");
 	}
 
 	/// <inheritdoc/>
 	public async Task RemoveAsync(string key, CancellationToken token = default)
 	{
-		await dcache.RemoveAsync(key, token);
+		await dcache.RemoveAsync($"{keyPrefix}{key}", token);
 	}
 
 	/// <inheritdoc/>
 	public void Set(string key, byte[] value, DistributedCacheEntryOptions options)
 	{
-		dcache.Set(key, compressor.CompressAsync(value).Result, options ?? defaultOptions);
+		dcache.Set($"{keyPrefix}{key}", compressor.CompressAsync(value).Result, options ?? defaultOptions);
 	}
 
 	/// <inheritdoc/>
 	public async Task SetAsync(string key, byte[] value, DistributedCacheEntryOptions options, CancellationToken token = default)
 	{
-		await dcache.SetAsync(key, await compressor.CompressAsync(value, token), options ?? defaultOptions, token);
+		await dcache.SetAsync($"{keyPrefix}{key}", await compressor.CompressAsync(value, token), options ?? defaultOptions, token);
 	}
 
 	/// <inheritdoc/>

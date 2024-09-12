@@ -39,39 +39,59 @@ public class IdentityBootstrapper
 {
 	public static void ConfigureBuilder(WebApplicationBuilder appBuilder)
 	{
-		const string CONF_DB_TYPE = "DatabaseTypes:Identity";
 		var logger = LoggerFactory.Create(b => b.AddConsole()).CreateLogger<IdentityBootstrapper>();
 		logger.LogInformation("Configuring Identity services...");
 
-		Enum.TryParse<DbType>(appBuilder.Configuration[CONF_DB_TYPE], true, out var dbType);
-		if (dbType == DbType.NULL)
-		{
-			logger.LogWarning("No value found at key {conf} in the configurations. Defaulting to INMEMORY.", CONF_DB_TYPE);
-			dbType = DbType.INMEMORY;
-		}
-
-		appBuilder.Services.AddDbContext<DwtIdentityDbContext>(options =>
+		const string confKeyBase = "Databases:Identity";
+		var dbConf = appBuilder.Configuration.GetSection(confKeyBase).Get<DbConf>()
+			?? throw new InvalidDataException($"No configuration found at key {confKeyBase} in the configurations.");
+		void optionsAction(DbContextOptionsBuilder options)
 		{
 			if (appBuilder.Environment.IsDevelopment())
 			{
 				options.EnableDetailedErrors().EnableSensitiveDataLogging();
 			}
-			var connStr = appBuilder.Configuration.GetConnectionString("IdentityDbContext") ?? "";
-			switch (dbType)
+			if (dbConf.Type == DbType.NULL)
+			{
+				logger.LogWarning("Unknown value at key {conf} in the configurations. Defaulting to INMEMORY.", $"{confKeyBase}:Type");
+				dbConf.Type = DbType.INMEMORY;
+			}
+
+			var connStr = appBuilder.Configuration.GetConnectionString(dbConf.ConnectionString) ?? "";
+			switch (dbConf.Type)
 			{
 				case DbType.INMEMORY or DbType.MEMORY:
-					options.UseInMemoryDatabase("DwtIdentity");
+					options.UseInMemoryDatabase(confKeyBase);
 					break;
-				case DbType.SQLITE:
-					options.UseSqlite(connStr);
-					break;
-				case DbType.SQLSERVER:
-					options.UseSqlServer(connStr);
+				case DbType.SQLITE or DbType.SQLSERVER:
+					if (string.IsNullOrWhiteSpace(dbConf.ConnectionString))
+					{
+						throw new InvalidDataException($"No connection string name found at key {confKeyBase}:ConnectionString in the configurations.");
+					}
+					if (string.IsNullOrWhiteSpace(connStr))
+					{
+						throw new InvalidDataException($"No connection string {dbConf.ConnectionString} defined in the ConnectionStrings section in the configurations.");
+					}
+
+					if (appBuilder.Environment.IsDevelopment())
+					{
+						logger.LogDebug("Using connection string {connStr} for {dbType} database.", connStr, dbConf.Type);
+					}
+
+					if (dbConf.Type == DbType.SQLITE)
+						options.UseSqlite(connStr);
+					else if (dbConf.Type == DbType.SQLSERVER)
+						options.UseSqlServer(connStr);
 					break;
 				default:
-					throw new InvalidDataException($"Invalid value at key {CONF_DB_TYPE} in the configurations: '{dbType}'.");
+					throw new InvalidDataException($"Invalid value at key {confKeyBase}:Type in the configurations: '{dbConf.Type}'");
 			}
-		});
+		}
+		if (dbConf.UseDbContextPool)
+			appBuilder.Services.AddDbContext<DwtIdentityDbContext>(optionsAction);
+		else
+			appBuilder.Services.AddDbContextPool<DwtIdentityDbContext>(
+				optionsAction, dbConf.PoolSize > 0 ? dbConf.PoolSize : DbConf.DEFAULT_POOL_SIZE);
 
 		// https://github.com/dotnet/aspnetcore/issues/26119
 		// Use .AddIdentityCore<DwtUser> then add necessary services manually (e.g. AddRoles, AddSignInManager, etc.)

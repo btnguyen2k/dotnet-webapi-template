@@ -1,21 +1,16 @@
 ﻿using Microsoft.Extensions.Caching.Distributed;
-using System.Text.Json;
+using System.IO.Compression;
 
 namespace Dwt.Shared.Cache;
 
-public class JsonCacheEntrySerializer : ICacheEntrySerializer
+public class CacheFacadeOptions
 {
-	/// <inheritdoc/>
-	public byte[] Serialize<T>(T value) => JsonSerializer.SerializeToUtf8Bytes(value);
+	public static CacheFacadeOptions DEFAULT { get; set; } = new CacheFacadeOptions();
 
-	/// <inheritdoc/>
-	public async Task<byte[]> SerializeAsync<T>(T value) => await Task.FromResult(JsonSerializer.SerializeToUtf8Bytes(value));
-
-	/// <inheritdoc/>
-	public T? Deserialize<T>(byte[] bytes) => JsonSerializer.Deserialize<T>(bytes);
-
-	/// <inheritdoc/>
-	public async Task<T?> DeserializeAsync<T>(byte[] bytes) => await Task.FromResult(JsonSerializer.Deserialize<T>(bytes));
+	public DistributedCacheEntryOptions DefaultDistributedCacheEntryOptions { get; set; } = new DistributedCacheEntryOptions();
+	public ICacheEntrySerializer CacheEntrySerializer { get; set; } = new JsonCacheEntrySerializer();
+	public CompressionLevel CompressionLevel { get; set; } = CompressionLevel.NoCompression;
+	public string KeyPrefix { get; set; } = "";
 }
 
 public class CacheFacade<TCategory> : ICacheFacade<TCategory>
@@ -23,32 +18,36 @@ public class CacheFacade<TCategory> : ICacheFacade<TCategory>
 	private readonly IDistributedCache dcache;
 	private readonly ICacheEntrySerializer serializer;
 	private readonly DistributedCacheEntryOptions defaultOptions;
+	private readonly ICompressor compressor;
 
-	public CacheFacade(DistributedCacheEntryOptions defaultOptions, IDistributedCache distributedCache)
-		: this(defaultOptions, distributedCache, new JsonCacheEntrySerializer())
-	{
-	}
+	public CacheFacade(IDistributedCache distributedCache) : this(distributedCache, CacheFacadeOptions.DEFAULT) { }
 
-	public CacheFacade(DistributedCacheEntryOptions defaultOptions, IDistributedCache distributedCache, ICacheEntrySerializer cacheEntrySerializer)
+	public CacheFacade(IDistributedCache distributedCache, CacheFacadeOptions options)
 	{
 		ArgumentNullException.ThrowIfNull(distributedCache, nameof(distributedCache));
-		ArgumentNullException.ThrowIfNull(cacheEntrySerializer, nameof(cacheEntrySerializer));
 
 		this.dcache = distributedCache;
-		this.serializer = cacheEntrySerializer;
-		this.defaultOptions = defaultOptions ?? new DistributedCacheEntryOptions();
+		this.serializer = options?.CacheEntrySerializer ?? new JsonCacheEntrySerializer();
+		this.defaultOptions = options?.DefaultDistributedCacheEntryOptions ?? new DistributedCacheEntryOptions();
+		this.compressor = options == null || options.CompressionLevel == CompressionLevel.NoCompression
+			? new NoCompressionCompressor()
+			: options.CompressionLevel == CompressionLevel.Fastest || options.CompressionLevel == CompressionLevel.Optimal
+				? new BrotliCompressor(options.CompressionLevel)
+				: new DeflateCompressor(options.CompressionLevel);
 	}
 
 	/// <inheritdoc/>
 	public byte[]? Get(string key)
 	{
-		return dcache.Get(key);
+		var cached = dcache.Get(key);
+		return cached == null ? null : compressor.DecompressAsync(cached).Result;
 	}
 
 	/// <inheritdoc/>
 	public async Task<byte[]?> GetAsync(string key, CancellationToken token = default)
 	{
-		return await dcache.GetAsync(key, token);
+		var cached = await dcache.GetAsync(key, token);
+		return cached == null ? null : await compressor.DecompressAsync(cached, token);
 	}
 
 	/// <inheritdoc/>
@@ -62,7 +61,7 @@ public class CacheFacade<TCategory> : ICacheFacade<TCategory>
 	public async Task<T?> GetAsync<T>(string key, CancellationToken token = default)
 	{
 		var cached = await GetAsync(key, token);
-		return cached == null ? default : await serializer.DeserializeAsync<T>(cached);
+		return cached == null ? default : await serializer.DeserializeAsync<T>(cached, token);
 	}
 
 	/// <inheritdoc/>
@@ -92,13 +91,13 @@ public class CacheFacade<TCategory> : ICacheFacade<TCategory>
 	/// <inheritdoc/>
 	public void Set(string key, byte[] value, DistributedCacheEntryOptions options)
 	{
-		dcache.Set(key, value, options ?? defaultOptions);
+		dcache.Set(key, compressor.CompressAsync(value).Result, options ?? defaultOptions);
 	}
 
 	/// <inheritdoc/>
 	public async Task SetAsync(string key, byte[] value, DistributedCacheEntryOptions options, CancellationToken token = default)
 	{
-		await dcache.SetAsync(key, value, options ?? defaultOptions, token);
+		await dcache.SetAsync(key, await compressor.CompressAsync(value, token), options ?? defaultOptions, token);
 	}
 
 	/// <inheritdoc/>
@@ -110,6 +109,60 @@ public class CacheFacade<TCategory> : ICacheFacade<TCategory>
 	/// <inheritdoc/>
 	public async Task SetAsync<T>(string key, T value, DistributedCacheEntryOptions options, CancellationToken token = default)
 	{
-		await SetAsync(key, await serializer.SerializeAsync(value), options, token);
+		await SetAsync(key, await serializer.SerializeAsync(value, token), options, token);
+	}
+}
+
+/*------------------------------------------------------------*/
+
+internal interface ICompressor
+{
+	Task<byte[]> CompressAsync(byte[] data, CancellationToken token = default);
+	Task<byte[]> DecompressAsync(byte[] data, CancellationToken token = default);
+}
+
+internal sealed class NoCompressionCompressor : ICompressor
+{
+	public async Task<byte[]> CompressAsync(byte[] data, CancellationToken token = default) => await Task.FromResult(data);
+	public async Task<byte[]> DecompressAsync(byte[] data, CancellationToken token = default) => await Task.FromResult(data);
+}
+
+internal sealed class BrotliCompressor(CompressionLevel compressionLevel) : ICompressor
+{
+	public async Task<byte[]> CompressAsync(byte[] data, CancellationToken token = default)
+	{
+		using var stream = new MemoryStream();
+		using var compressor = new BrotliStream(stream, compressionLevel);
+		await compressor.WriteAsync(data, token);
+		compressor.Close();
+		return stream.ToArray();
+	}
+
+	public async Task<byte[]> DecompressAsync(byte[] data, CancellationToken token = default)
+	{
+		using var stream = new MemoryStream();
+		using var decompressor = new BrotliStream(new MemoryStream(data), CompressionMode.Decompress);
+		await decompressor.CopyToAsync(stream, token);
+		return stream.ToArray();
+	}
+}
+
+internal sealed class DeflateCompressor(CompressionLevel compressionLevel) : ICompressor
+{
+	public async Task<byte[]> CompressAsync(byte[] data, CancellationToken token = default)
+	{
+		using var stream = new MemoryStream();
+		using var compressor = new DeflateStream(stream, compressionLevel);
+		await compressor.WriteAsync(data, token);
+		compressor.Close();
+		return stream.ToArray();
+	}
+
+	public async Task<byte[]> DecompressAsync(byte[] data, CancellationToken token = default)
+	{
+		using var stream = new MemoryStream();
+		using var decompressor = new DeflateStream(new MemoryStream(data), CompressionMode.Decompress);
+		await decompressor.CopyToAsync(stream, token);
+		return stream.ToArray();
 	}
 }

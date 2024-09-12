@@ -16,55 +16,66 @@ public class CacheBootstrapper
 		var logger = LoggerFactory.Create(b => b.AddConsole()).CreateLogger<CacheBootstrapper>();
 		logger.LogInformation("Configuring cache services...");
 
-		if (SetupCache(appBuilder, "Caches:Application", "CACHE_APPLICATION", logger))
+		var confKeyBase = "Caches:Application";
+		var keyedServiceName = "CACHE_APPLICATION";
+		var cacheConf = SetupCache(appBuilder, confKeyBase, keyedServiceName, logger);
+		if (cacheConf != null)
 		{
 			appBuilder.Services.AddSingleton<ICacheFacade<IApplicationRepository>>(sp =>
 			{
-				var expiration = appBuilder.Configuration.GetValue<int>("Caches:Application:Expiration");
-				var defaultOptions = new DistributedCacheEntryOptions()
+				var options = new CacheFacadeOptions()
 				{
-					SlidingExpiration = expiration > 0 ? TimeSpan.FromSeconds(expiration) : null
+					CompressionLevel = cacheConf.CompressionLevel,
+					KeyPrefix = cacheConf.KeyPrefix,
+					DefaultDistributedCacheEntryOptions = new DistributedCacheEntryOptions()
+					{
+						AbsoluteExpirationRelativeToNow = cacheConf.ExpirationAfterWrite > 0 ? TimeSpan.FromSeconds(cacheConf.ExpirationAfterWrite) : null,
+						SlidingExpiration = cacheConf.ExpirationAfterAccess > 0 ? TimeSpan.FromSeconds(cacheConf.ExpirationAfterAccess) : null,
+					},
 				};
-				var cacheService = sp.GetRequiredKeyedService<IDistributedCache>("CACHE_APPLICATION");
-				return new CacheFacade<IApplicationRepository>(defaultOptions, cacheService);
+				var cacheService = sp.GetRequiredKeyedService<IDistributedCache>(keyedServiceName);
+				return new CacheFacade<IApplicationRepository>(cacheService, options);
 			});
 		}
 
 		logger.LogInformation("Cache services configured.");
 	}
 
-	private static bool SetupCache(WebApplicationBuilder appBuilder, string confKey, string keyedServiceName, ILogger logger)
+	private static CacheConf? SetupCache(WebApplicationBuilder appBuilder, string confKeyBase, string keyedServiceName, ILogger logger)
 	{
-		Enum.TryParse<CacheType>(appBuilder.Configuration[$"{confKey}:Type"], true, out var cacheType);
-		switch (cacheType)
+		var cacheConf = appBuilder.Configuration.GetSection(confKeyBase).Get<CacheConf>()
+			?? throw new InvalidDataException($"No configuration found at key {confKeyBase} in the configurations.");
+		switch (cacheConf.Type)
 		{
 			case CacheType.INMEMORY or CacheType.MEMORY:
-				var cacheSizeLimit = appBuilder.Configuration.GetValue<int>($"{confKey}:SizeLimit");
-				cacheSizeLimit = cacheSizeLimit > 0 ? cacheSizeLimit : 100 * 1024 * 1024; // ~100mb
+				var cacheSizeLimit = cacheConf.SizeLimit > 0 ? cacheConf.SizeLimit : CacheConf.DEFAULT_SIZE_LIMIT;
 				logger.LogInformation("Using in-memory cache for {domain}, with SizeLimit = {SizeLimit}...", keyedServiceName, cacheSizeLimit);
 				var memoryCache = new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions()
 				{
 					SizeLimit = cacheSizeLimit
 				}));
 				appBuilder.Services.AddKeyedSingleton<IDistributedCache>(keyedServiceName, memoryCache);
-				return true;
+				return cacheConf;
 			case CacheType.REDIS:
-				var connStrKey = appBuilder.Configuration[$"{confKey}:ConnectionString"];
-				if (string.IsNullOrWhiteSpace(connStrKey))
+				if (string.IsNullOrWhiteSpace(cacheConf.ConnectionString))
 				{
-					throw new InvalidDataException($"Using Redis cache for {keyedServiceName}, but no connection string defined at key {confKey}:ConnectionString in the configurations.");
+					throw new InvalidDataException($"No connection string name found at key {confKeyBase}:ConnectionString in the configurations.");
+				}
+				var connStr = appBuilder.Configuration.GetConnectionString(cacheConf.ConnectionString) ?? "";
+				if (string.IsNullOrWhiteSpace(connStr))
+				{
+					throw new InvalidDataException($"No connection string {cacheConf.ConnectionString} defined in the ConnectionStrings section in the configurations.");
 				}
 				logger.LogInformation("Using Redis cache for {domain}...", keyedServiceName);
-				var connStr = appBuilder.Configuration.GetConnectionString(connStrKey);
 				var redisCache = new RedisCache(Options.Create(new RedisCacheOptions()
 				{
 					Configuration = connStr
 				}));
 				appBuilder.Services.AddKeyedSingleton<IDistributedCache>(keyedServiceName, redisCache);
-				return true;
+				return cacheConf;
 			default:
-				logger.LogInformation("No cache configured for {domain}, or invalid cache type '{cacheType}'.", keyedServiceName, cacheType);
-				return false;
+				logger.LogInformation("No cache configured for {domain}, or invalid cache type '{cacheType}'.", keyedServiceName, cacheConf.Type);
+				return null;
 		}
 	}
 }

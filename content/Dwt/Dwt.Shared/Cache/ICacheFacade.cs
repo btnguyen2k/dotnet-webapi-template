@@ -2,17 +2,10 @@
 
 namespace Dwt.Shared.Cache;
 
-public interface ICacheEntrySerializer
-{
-	byte[] Serialize<T>(T value);
-
-	Task<byte[]> SerializeAsync<T>(T value);
-
-	T? Deserialize<T>(byte[] bytes);
-
-	Task<T?> DeserializeAsync<T>(byte[] bytes);
-}
-
+/// <summary>
+/// Extends IDistributedCache functionality with typed methods.
+/// </summary>
+/// <typeparam name="TCategory"></typeparam>
 public interface ICacheFacade<TCategory> : IDistributedCache
 {
 	T? Get<T>(string key);

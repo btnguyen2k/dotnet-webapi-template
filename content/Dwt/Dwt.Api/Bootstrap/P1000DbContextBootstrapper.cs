@@ -1,5 +1,6 @@
 ﻿using Dwt.Api.Helpers;
 using Dwt.Shared.EF;
+using Dwt.Shared.EF.Identity;
 using Dwt.Shared.Models;
 using Microsoft.EntityFrameworkCore;
 

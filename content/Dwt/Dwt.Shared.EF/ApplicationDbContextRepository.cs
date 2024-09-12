@@ -14,10 +14,9 @@ public sealed class ApplicationDbContextRepository
 
 	public ApplicationDbContextRepository(
 		DbContextOptions<ApplicationDbContextRepository> options,
-		ICacheFacade<IApplicationRepository>? cache,
-		ILogger<ApplicationDbContextRepository> logger) : base(options)
+		ILogger<ApplicationDbContextRepository> logger,
+		ICacheFacade<IApplicationRepository>? cache = null) : base(options)
 	{
-
 		this.cache = cache;
 		this.logger = logger;
 
@@ -25,7 +24,7 @@ public sealed class ApplicationDbContextRepository
 		{
 			if (args.Entry.Entity is Application app && cache != null)
 			{
-				//logger.LogCritical("State changed: {state}", args.Entry.State);
+				logger.LogDebug("State changed: {state}", args.Entry.State);
 				switch (args.Entry.State)
 				{
 					case EntityState.Added:
@@ -50,15 +49,18 @@ public sealed class ApplicationDbContextRepository
 	private Application CacheHit(Application cached)
 	{
 		var app = Attach(cached).Entity;
-		//logger.LogError("Cache hit: {id} / {count}", cached.Id, ChangeTracker.Entries().Count());
+		logger.LogDebug("Cache hit: {id} / {count}", cached.Id, ChangeTracker.Entries().Count());
 		return app;
 	}
 
 	private async Task<Application?> CacheMissAsync(Application? item)
 	{
 		if (item == null) return null;
-		//logger.LogError("Cache miss: {id}!", item.Id);
-		if (cache != null) await cache.SetAsync(item.Id, item, default!);
+		if (cache != null)
+		{
+			logger.LogDebug("Cache miss: {id}", item.Id);
+			await cache.SetAsync(item.Id, item, default!);
+		}
 		return item;
 	}
 

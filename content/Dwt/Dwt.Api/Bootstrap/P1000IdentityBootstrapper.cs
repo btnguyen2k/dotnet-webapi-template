@@ -82,9 +82,9 @@ public class IdentityBootstrapper
 			}
 		}
 		if (dbConf.UseDbContextPool)
-			appBuilder.Services.AddDbContext<DwtIdentityDbContext>(optionsAction);
+			appBuilder.Services.AddDbContext<IIdentityRepository, IdentityDbContextRepository>(optionsAction);
 		else
-			appBuilder.Services.AddDbContextPool<DwtIdentityDbContext>(
+			appBuilder.Services.AddDbContextPool<IIdentityRepository, IdentityDbContextRepository>(
 				optionsAction, dbConf.PoolSize > 0 ? dbConf.PoolSize : DbConf.DEFAULT_POOL_SIZE);
 
 		// https://github.com/dotnet/aspnetcore/issues/26119
@@ -102,9 +102,10 @@ public class IdentityBootstrapper
 			})
 			.AddRoles<DwtRole>()
 			.AddSignInManager<SignInManager<DwtUser>>()
-			.AddEntityFrameworkStores<DwtIdentityDbContext>()
+			.AddEntityFrameworkStores<IdentityDbContextRepository>()
 			;
 
+		// perform initialization tasks in background
 		appBuilder.Services.AddHostedService<IdentityInitializer>();
 	}
 }
@@ -114,85 +115,56 @@ sealed class IdentityInitializer(
 	ILogger<IdentityInitializer> logger,
 	IWebHostEnvironment environment) : IHostedService
 {
-	static void ThrowsIfNotSucceeded(IdentityResult result, ILogger logger)
-	{
-		if (!result.Succeeded)
-		{
-			foreach (var error in result.Errors)
-			{
-				logger.LogError("Failed to execute DB operation: {code} - {description}", error.Code, error.Description);
-				throw new InvalidOperationException($"{error.Code} - {error.Description}");
-			}
-		}
-	}
-
 	public async Task StartAsync(CancellationToken cancellationToken)
 	{
 		logger.LogInformation("Initializing identity data...");
 
 		using (var scope = serviceProvider.CreateScope())
 		{
-			var dbContext = scope.ServiceProvider.GetRequiredService<DwtIdentityDbContext>();
+			var identityRepo = scope.ServiceProvider.GetRequiredService<IIdentityRepository>() as IdentityDbContextRepository
+				?? throw new InvalidOperationException("Identity repository is not an instance of IdentityDbContextRepository.");
 			var tryParseInitDb = bool.TryParse(Environment.GetEnvironmentVariable(GlobalVars.ENV_INIT_DB), out var initDb);
 			if (environment.IsDevelopment() || (tryParseInitDb && initDb))
 			{
 				logger.LogInformation("Ensuring database schema exist...");
-				dbContext.Database.EnsureCreated();
+				identityRepo.Database.EnsureCreated();
 			}
 
 			logger.LogInformation("Ensuring roles exist...");
-			var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<DwtRole>>();
 			foreach (var r in DwtRole.ALL_ROLES)
 			{
-				if (await roleManager.FindByIdAsync(r.Id) == null)
-				{
-					ThrowsIfNotSucceeded(await roleManager.CreateAsync(r), logger);
-				}
+				await identityRepo.CreateIfNotExistsAsync(r, cancellationToken: cancellationToken);
 			}
 
 			logger.LogInformation("Ensuring permissions setup...");
-			var role = await roleManager.FindByIdAsync(DwtRole.ACCOUNT_ADMIN.Id);
-			if (role != null)
+
+			// permissions setup for role ACCOUNT_ADMIN
+			var roleAccountAdmin = await identityRepo.GetRoleByIDAsync(DwtRole.ACCOUNT_ADMIN.Id, cancellationToken: cancellationToken)
+				?? throw new InvalidOperationException($"Role '{DwtRole.ACCOUNT_ADMIN.Id}' does not exist.");
+			foreach (var claim in new Claim[] { DwtIdentity.CLAIM_PERM_CREATE_USER })
 			{
-				// permissions setup for role ACCOUNT_ADMIN
-				var claims = await roleManager.GetClaimsAsync(role);
-				var expectedClaims = new Claim[] { DwtIdentity.CLAIM_PERM_CREATE_USER };
-				foreach (var expectedClaim in expectedClaims)
-				{
-					if (!claims.Contains(expectedClaim, ClaimEqualityComparer.Instance))
-					{
-						ThrowsIfNotSucceeded(await roleManager.AddClaimAsync(role, expectedClaim), logger);
-					}
-				}
+				await identityRepo.AddClaimIfNotExistsAsync(roleAccountAdmin, claim, cancellationToken: cancellationToken);
 			}
-			role = await roleManager.FindByIdAsync(DwtRole.APP_ADMIN.Id);
-			if (role != null)
+
+			// permissions setup for role APP_ADMIN
+			var roleAppAdmin = await identityRepo.GetRoleByIDAsync(DwtRole.APP_ADMIN.Id, cancellationToken: cancellationToken)
+				?? throw new InvalidOperationException($"Role '{DwtRole.APP_ADMIN.Id}' does not exist.");
+			foreach (var claim in new Claim[] { DwtIdentity.CLAIM_PERM_CREATE_APP, DwtIdentity.CLAIM_PERM_DELETE_APP, DwtIdentity.CLAIM_PERM_MODIFY_APP })
 			{
-				// permissions setup for role APP_ADMIN
-				var claims = await roleManager.GetClaimsAsync(role);
-				var expectedClaims = new Claim[] { DwtIdentity.CLAIM_PERM_CREATE_APP, DwtIdentity.CLAIM_PERM_DELETE_APP, DwtIdentity.CLAIM_PERM_MODIFY_APP };
-				foreach (var expectedClaim in expectedClaims)
-				{
-					if (!claims.Contains(expectedClaim, ClaimEqualityComparer.Instance))
-					{
-						ThrowsIfNotSucceeded(await roleManager.AddClaimAsync(role, expectedClaim), logger);
-					}
-				}
+				await identityRepo.AddClaimIfNotExistsAsync(roleAppAdmin, claim, cancellationToken: cancellationToken);
 			}
 
 			logger.LogInformation("Ensuring admin user exist...");
-			var userManager = scope.ServiceProvider.GetRequiredService<UserManager<DwtUser>>();
-			var adminUser = await userManager.FindByIdAsync("admin");
-			if (adminUser == null)
+			var userAdmin = await identityRepo.GetUserByIDAsync("admin", cancellationToken: cancellationToken);
+			if (userAdmin == null)
 			{
 				var identityOptions = scope.ServiceProvider.GetRequiredService<IOptions<IdentityOptions>>()?.Value;
 				var generatedPassword = GenerateRandomPassword(identityOptions?.Password);
 				logger.LogWarning("Admin user does not exist. Creating one with a random password: {password}", generatedPassword);
 				logger.LogWarning("PLEASE REMEMBER THIS PASSWORD AS IT WILL NOT BE DISPLAYED AGAIN!");
 
-				adminUser = new DwtUser { Id = "admin", UserName = "admin@local", Email = "admin@local" };
-				ThrowsIfNotSucceeded(await userManager.CreateAsync(adminUser, generatedPassword), logger);
-				ThrowsIfNotSucceeded(await userManager.AddToRoleAsync(adminUser, DwtRole.ADMIN.Name!), logger);
+				userAdmin = new DwtUser { Id = "admin", UserName = "admin@local", Email = "admin@local" };
+				await identityRepo.CreateIfNotExistsAsync(userAdmin, cancellationToken: cancellationToken);
 			}
 		}
 	}

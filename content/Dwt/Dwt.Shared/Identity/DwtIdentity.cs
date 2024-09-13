@@ -69,7 +69,7 @@ public class DwtIdentity
 
 public class ClaimEqualityComparer : IEqualityComparer<Claim>
 {
-	public static readonly ClaimEqualityComparer Instance = new();
+	public static readonly ClaimEqualityComparer INSTANCE = new();
 
 	public bool Equals(Claim? x, Claim? y)
 	{

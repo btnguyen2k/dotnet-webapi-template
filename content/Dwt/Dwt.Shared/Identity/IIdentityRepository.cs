@@ -38,6 +38,10 @@ public interface IIdentityRepository
 	Task<DwtUser?> GetUserByEmailAsync(string email, UserFetchOptions? options = default, CancellationToken cancellationToken = default);
 	Task<DwtUser?> GetUserByUserNameAsync(string userName, UserFetchOptions? options = default, CancellationToken cancellationToken = default);
 
+	Task<DwtUser?> UpdateAsync(DwtUser user, CancellationToken cancellationToken = default);
+
+	Task<DwtUser?> UpdateSecurityStampAsync(DwtUser user, CancellationToken cancellationToken = default);
+
 	/// <summary>
 	/// Retrieves the roles of the user.
 	/// </summary>

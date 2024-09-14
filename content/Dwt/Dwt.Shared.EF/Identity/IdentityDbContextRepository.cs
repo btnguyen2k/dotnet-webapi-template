@@ -92,6 +92,22 @@ public class IdentityDbContextRepository : IdentityDbContext<DwtUser, DwtRole, s
 	}
 
 	/// <inheritdoc/>
+	public async Task<DwtUser?> UpdateAsync(DwtUser user, CancellationToken cancellationToken = default)
+	{
+		var entity = Users.Update(user);
+		entity.Entity.ConcurrencyStamp = Guid.NewGuid().ToString();
+		var result = await SaveChangesAsync(cancellationToken);
+		return result > 0 ? entity.Entity : null;
+	}
+
+	/// <inheritdoc/>
+	public async Task<DwtUser?> UpdateSecurityStampAsync(DwtUser user, CancellationToken cancellationToken = default)
+	{
+		user.SecurityStamp = Guid.NewGuid().ToString("N");
+		return await UpdateAsync(user, cancellationToken);
+	}
+
+	/// <inheritdoc/>
 	public async Task<IEnumerable<DwtRole>> GetRolesAsync(DwtUser user, CancellationToken cancellationToken = default)
 	{
 		return await UserRoles

@@ -3,6 +3,7 @@ using Dwt.Shared.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace Dwt.Api.Controllers.Samples;
 
@@ -12,7 +13,8 @@ public partial class UsersController : ApiBaseController
 	/// Deletes an existing user account.
 	/// </summary>
 	/// <param name="uid"></param>
-	/// <param name="userManager"></param>
+	/// <param name="identityRepository"></param>
+	/// <param name="identityOptions"></param>
 	/// <param name="authenticator"></param>
 	/// <param name="authenticatorAsync"></param>
 	/// <returns></returns>
@@ -20,55 +22,48 @@ public partial class UsersController : ApiBaseController
 	[HttpDelete("/api/users/{uid}")]
 	[Authorize(Roles = "Admin, Account Admin")]
 	public async Task<ActionResult<ApiResp<UserResponse>>> DeleteUser(string uid,
-		UserManager<DwtUser> userManager,
+		IIdentityRepository identityRepository,
+		IOptions<IdentityOptions> identityOptions,
 		IAuthenticator? authenticator, IAuthenticatorAsync? authenticatorAsync)
 	{
-		if (authenticator == null && authenticatorAsync == null)
+		var (vAuthTokenResult, currentUser) = await VerifyAuthTokenAndCurrentUser(
+			identityRepository,
+			identityOptions.Value,
+			authenticator, authenticatorAsync);
+		if (vAuthTokenResult != null)
 		{
-			throw new ArgumentNullException("No authenticator defined.", (Exception?)null);
+			// current auth token and signed-in user should all be valid
+			return vAuthTokenResult;
 		}
 
-		var jwtToken = GetAuthToken();
-		var tokenValidationResult = await ValidateAuthTokenAsync(authenticator, authenticatorAsync, jwtToken!);
-		if (tokenValidationResult.Status != 200)
-		{
-			return ResponseNoData(403, tokenValidationResult.Error);
-		}
-
-		var user = await userManager.FindByIdAsync(uid);
-		if (user == null)
+		var reqUser = await identityRepository.GetUserByIDAsync(uid);
+		if (reqUser == null)
 		{
 			return _respNotFound;
 		}
 
-		var currentUser = await GetUserAsync(identityOptions, userManager);
-		if (currentUser == null)
-		{
-			// should not happen
-			return _respAuthenticationRequired;
-		}
-
-		if (currentUser.Id == user.Id)
+		if (currentUser.Id == reqUser.Id)
 		{
 			return ResponseNoData(400, "Cannot delete yourself.");
 		}
 
-		if (await userManager.IsInRoleAsync(user, DwtRole.ROLE_NAME_ADMIN))
+		if (await identityRepository.HasRoleAsync(reqUser, DwtRole.ADMIN))
 		{
-			return ResponseNoData(400, $"Cannot delete user with role '{DwtRole.ROLE_NAME_ADMIN}'.");
+			return ResponseNoData(403, $"Cannot delete user with role '{DwtRole.ROLE_NAME_ADMIN}'.");
 		}
 
-		var iresult = await userManager.DeleteAsync(user);
+		var iresult = await identityRepository.DeleteAsync(reqUser);
 		if (iresult != IdentityResult.Success)
 		{
+			//return ResponseNoData(500, $"{string.Join(", ", iresult.Errors.Select(r => r.Description))}");
 			return ResponseNoData(500, iresult.ToString());
 		}
 
 		return ResponseOk(new UserResponse
 		{
-			Id = user.Id,
-			Username = user.UserName!,
-			Email = user.Email!,
+			Id = reqUser.Id,
+			Username = reqUser.UserName!,
+			Email = reqUser.Email!,
 		});
 	}
 }

@@ -27,15 +27,24 @@ public class DwtRole : IdentityRole
 		ROLE_ID_ACCOUNT_ADMIN,
 		ROLE_ID_APPLICATION_ADMIN];
 
-	public static readonly DwtRole ADMIN = new() { Id = ROLE_ID_ADMIN, Name = ROLE_NAME_ADMIN };
-	public static readonly DwtRole MANAGER = new() { Id = ROLE_ID_MANAGER, Name = ROLE_NAME_MANAGER };
-	public static readonly DwtRole STAFF = new() { Id = ROLE_ID_STAFF, Name = ROLE_NAME_STAFF };
-	public static readonly DwtRole ACCOUNT_ADMIN = new() { Id = ROLE_ID_ACCOUNT_ADMIN, Name = ROLE_NAME_ACCOUNT_ADMIN };
-	public static readonly DwtRole APP_ADMIN = new() { Id = ROLE_ID_APPLICATION_ADMIN, Name = ROLE_NAME_APPLICATION_ADMIN };
+	public static readonly DwtRole ADMIN = new() { Id = ROLE_ID_ADMIN, Name = ROLE_NAME_ADMIN, ConcurrencyStamp = new Guid().ToString() };
+	public static readonly DwtRole MANAGER = new() { Id = ROLE_ID_MANAGER, Name = ROLE_NAME_MANAGER, ConcurrencyStamp = new Guid().ToString() };
+	public static readonly DwtRole STAFF = new() { Id = ROLE_ID_STAFF, Name = ROLE_NAME_STAFF, ConcurrencyStamp = new Guid().ToString() };
+	public static readonly DwtRole ACCOUNT_ADMIN = new() { Id = ROLE_ID_ACCOUNT_ADMIN, Name = ROLE_NAME_ACCOUNT_ADMIN, ConcurrencyStamp = new Guid().ToString() };
+	public static readonly DwtRole APP_ADMIN = new() { Id = ROLE_ID_APPLICATION_ADMIN, Name = ROLE_NAME_APPLICATION_ADMIN, ConcurrencyStamp = new Guid().ToString() };
 	public static readonly IEnumerable<DwtRole> ALL_ROLES = [
 		ADMIN,
 		MANAGER,
 		STAFF,
 		ACCOUNT_ADMIN,
 		APP_ADMIN];
+
+	public override bool Equals(object? obj)
+	{
+		if (obj == null || obj as DwtRole == null) return false;
+		if (obj == this) return true;
+		return (obj as DwtRole)!.Id == Id;
+	}
+
+	public override int GetHashCode() => Id.GetHashCode(StringComparison.InvariantCultureIgnoreCase);
 }

@@ -42,35 +42,50 @@ public class IdentityBootstrapper
 		var logger = LoggerFactory.Create(b => b.AddConsole()).CreateLogger<IdentityBootstrapper>();
 		logger.LogInformation("Configuring Identity services...");
 
-		Enum.TryParse<DbType>(appBuilder.Configuration["DatabaseTypes:Identity"], true, out var dbType);
-		if (dbType == DbType.NULL)
-		{
-			logger.LogWarning("No value found at key DatabaseTypes:Identity in the configurations. Defaulting to INMEMORY.");
-			dbType = DbType.INMEMORY;
-		}
-
-		appBuilder.Services.AddDbContext<DwtIdentityDbContext>(options =>
+		const string confKeyBase = "Databases:Identity";
+		var dbConf = appBuilder.Configuration.GetSection(confKeyBase).Get<DbConf>()
+			?? throw new InvalidDataException($"No configuration found at key {confKeyBase} in the configurations.");
+		void optionsAction(DbContextOptionsBuilder options)
 		{
 			if (appBuilder.Environment.IsDevelopment())
 			{
 				options.EnableDetailedErrors().EnableSensitiveDataLogging();
 			}
-			var connStr = appBuilder.Configuration.GetConnectionString("Identity") ?? "";
-			switch (dbType)
+			if (dbConf.Type == DbType.NULL)
+			{
+				logger.LogWarning("Unknown value at key {conf} in the configurations. Defaulting to INMEMORY.", $"{confKeyBase}:Type");
+				dbConf.Type = DbType.INMEMORY;
+			}
+
+			var connStr = appBuilder.Configuration.GetConnectionString(dbConf.ConnectionString) ?? "";
+			switch (dbConf.Type)
 			{
 				case DbType.INMEMORY or DbType.MEMORY:
-					options.UseInMemoryDatabase("DwtIdentity");
+					options.UseInMemoryDatabase(confKeyBase);
 					break;
-				case DbType.SQLITE:
-					options.UseSqlite(connStr);
-					break;
-				case DbType.SQLSERVER:
-					options.UseSqlServer(connStr);
+				case DbType.SQLITE or DbType.SQLSERVER:
+					if (string.IsNullOrWhiteSpace(dbConf.ConnectionString))
+					{
+						throw new InvalidDataException($"No connection string name found at key {confKeyBase}:ConnectionString in the configurations.");
+					}
+					if (string.IsNullOrWhiteSpace(connStr))
+					{
+						throw new InvalidDataException($"No connection string {dbConf.ConnectionString} defined in the ConnectionStrings section in the configurations.");
+					}
+					if (dbConf.Type == DbType.SQLITE)
+						options.UseSqlite(connStr);
+					else if (dbConf.Type == DbType.SQLSERVER)
+						options.UseSqlServer(connStr);
 					break;
 				default:
-					throw new InvalidDataException($"Invalid value at key DatabaseTypes:Identity in the configurations: '{dbType}'.");
+					throw new InvalidDataException($"Invalid value at key {confKeyBase}:Type in the configurations: '{dbConf.Type}'");
 			}
-		});
+		}
+		if (dbConf.UseDbContextPool)
+			appBuilder.Services.AddDbContext<IIdentityRepository, IdentityDbContextRepository>(optionsAction);
+		else
+			appBuilder.Services.AddDbContextPool<IIdentityRepository, IdentityDbContextRepository>(
+				optionsAction, dbConf.PoolSize > 0 ? dbConf.PoolSize : DbConf.DEFAULT_POOL_SIZE);
 
 		// https://github.com/dotnet/aspnetcore/issues/26119
 		// Use .AddIdentityCore<DwtUser> then add necessary services manually (e.g. AddRoles, AddSignInManager, etc.)
@@ -87,9 +102,10 @@ public class IdentityBootstrapper
 			})
 			.AddRoles<DwtRole>()
 			.AddSignInManager<SignInManager<DwtUser>>()
-			.AddEntityFrameworkStores<DwtIdentityDbContext>()
+			.AddEntityFrameworkStores<IdentityDbContextRepository>()
 			;
 
+		// perform initialization tasks in background
 		appBuilder.Services.AddHostedService<IdentityInitializer>();
 	}
 }
@@ -99,85 +115,99 @@ sealed class IdentityInitializer(
 	ILogger<IdentityInitializer> logger,
 	IWebHostEnvironment environment) : IHostedService
 {
-	static void ThrowsIfNotSucceeded(IdentityResult result, ILogger logger)
-	{
-		if (!result.Succeeded)
-		{
-			foreach (var error in result.Errors)
-			{
-				logger.LogError("Failed to execute DB operation: {code} - {description}", error.Code, error.Description);
-				throw new InvalidOperationException($"{error.Code} - {error.Description}");
-			}
-		}
-	}
-
 	public async Task StartAsync(CancellationToken cancellationToken)
 	{
 		logger.LogInformation("Initializing identity data...");
 
 		using (var scope = serviceProvider.CreateScope())
 		{
-			var dbContext = scope.ServiceProvider.GetRequiredService<DwtIdentityDbContext>();
+			var identityRepo = scope.ServiceProvider.GetRequiredService<IIdentityRepository>() as IdentityDbContextRepository
+				?? throw new InvalidOperationException("Identity repository is not an instance of IdentityDbContextRepository.");
 			var tryParseInitDb = bool.TryParse(Environment.GetEnvironmentVariable(GlobalVars.ENV_INIT_DB), out var initDb);
 			if (environment.IsDevelopment() || (tryParseInitDb && initDb))
 			{
 				logger.LogInformation("Ensuring database schema exist...");
-				dbContext.Database.EnsureCreated();
+				identityRepo.Database.EnsureCreated();
 			}
 
+			var nameNormalizer = scope.ServiceProvider.GetRequiredService<ILookupNormalizer>()
+				?? throw new InvalidOperationException("LookupNormalizer service is not registered.");
+
 			logger.LogInformation("Ensuring roles exist...");
-			var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<DwtRole>>();
 			foreach (var r in DwtRole.ALL_ROLES)
 			{
-				if (await roleManager.FindByIdAsync(r.Id) == null)
+				r.NormalizedName = nameNormalizer.NormalizeName(r.Name);
+				var result = await identityRepo.CreateIfNotExistsAsync(r, cancellationToken: cancellationToken);
+				if (result != IdentityResult.Success)
 				{
-					ThrowsIfNotSucceeded(await roleManager.CreateAsync(r), logger);
+					throw new InvalidOperationException(result.ToString());
+					//throw new InvalidOperationException($"{string.Join(", ", result.Errors.Select(r => r.Description))}");
 				}
 			}
 
 			logger.LogInformation("Ensuring permissions setup...");
-			var role = await roleManager.FindByIdAsync(DwtRole.ACCOUNT_ADMIN.Id);
-			if (role != null)
+
+			// permissions setup for role ACCOUNT_ADMIN
+			var roleAccountAdmin = await identityRepo.GetRoleByIDAsync(DwtRole.ACCOUNT_ADMIN.Id, cancellationToken: cancellationToken)
+				?? throw new InvalidOperationException($"Role '{DwtRole.ACCOUNT_ADMIN.Id}' does not exist.");
+			foreach (var claim in new Claim[] { DwtIdentity.CLAIM_PERM_CREATE_USER })
 			{
-				// permissions setup for role ACCOUNT_ADMIN
-				var claims = await roleManager.GetClaimsAsync(role);
-				var expectedClaims = new Claim[] { DwtIdentity.CLAIM_PERM_CREATE_USER };
-				foreach (var expectedClaim in expectedClaims)
+				var result = await identityRepo.AddClaimIfNotExistsAsync(roleAccountAdmin, claim, cancellationToken: cancellationToken);
+				if (result != IdentityResult.Success)
 				{
-					if (!claims.Contains(expectedClaim, ClaimEqualityComparer.Instance))
-					{
-						ThrowsIfNotSucceeded(await roleManager.AddClaimAsync(role, expectedClaim), logger);
-					}
+					throw new InvalidOperationException(result.ToString());
+					//throw new InvalidOperationException($"{string.Join(", ", result.Errors.Select(r => r.Description))}");
 				}
 			}
-			role = await roleManager.FindByIdAsync(DwtRole.APP_ADMIN.Id);
-			if (role != null)
+
+			// permissions setup for role APP_ADMIN
+			var roleAppAdmin = await identityRepo.GetRoleByIDAsync(DwtRole.APP_ADMIN.Id, cancellationToken: cancellationToken)
+				?? throw new InvalidOperationException($"Role '{DwtRole.APP_ADMIN.Id}' does not exist.");
+			foreach (var claim in new Claim[] { DwtIdentity.CLAIM_PERM_CREATE_APP, DwtIdentity.CLAIM_PERM_DELETE_APP, DwtIdentity.CLAIM_PERM_MODIFY_APP })
 			{
-				// permissions setup for role APP_ADMIN
-				var claims = await roleManager.GetClaimsAsync(role);
-				var expectedClaims = new Claim[] { DwtIdentity.CLAIM_PERM_CREATE_APP, DwtIdentity.CLAIM_PERM_DELETE_APP, DwtIdentity.CLAIM_PERM_MODIFY_APP };
-				foreach (var expectedClaim in expectedClaims)
+				var result = await identityRepo.AddClaimIfNotExistsAsync(roleAppAdmin, claim, cancellationToken: cancellationToken);
+				if (result != IdentityResult.Success)
 				{
-					if (!claims.Contains(expectedClaim, ClaimEqualityComparer.Instance))
-					{
-						ThrowsIfNotSucceeded(await roleManager.AddClaimAsync(role, expectedClaim), logger);
-					}
+					throw new InvalidOperationException(result.ToString());
+					//throw new InvalidOperationException($"{string.Join(", ", result.Errors.Select(r => r.Description))}");
 				}
 			}
 
 			logger.LogInformation("Ensuring admin user exist...");
-			var userManager = scope.ServiceProvider.GetRequiredService<UserManager<DwtUser>>();
-			var adminUser = await userManager.FindByIdAsync("admin");
-			if (adminUser == null)
+			var userAdmin = await identityRepo.GetUserByIDAsync("admin", cancellationToken: cancellationToken);
+			if (userAdmin == null)
 			{
 				var identityOptions = scope.ServiceProvider.GetRequiredService<IOptions<IdentityOptions>>()?.Value;
 				var generatedPassword = GenerateRandomPassword(identityOptions?.Password);
 				logger.LogWarning("Admin user does not exist. Creating one with a random password: {password}", generatedPassword);
 				logger.LogWarning("PLEASE REMEMBER THIS PASSWORD AS IT WILL NOT BE DISPLAYED AGAIN!");
 
-				adminUser = new DwtUser { Id = "admin", UserName = "admin@local", Email = "admin@local" };
-				ThrowsIfNotSucceeded(await userManager.CreateAsync(adminUser, generatedPassword), logger);
-				ThrowsIfNotSucceeded(await userManager.AddToRoleAsync(adminUser, DwtRole.ADMIN.Name!), logger);
+				var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<DwtUser>>();
+
+				userAdmin = new DwtUser
+				{
+					Id = "admin",
+					UserName = "admin@local",
+					NormalizedUserName = nameNormalizer.NormalizeName("admin@local"),
+					Email = "admin@local",
+					NormalizedEmail = nameNormalizer.NormalizeEmail("admin@local"),
+					PasswordHash = passwordHasher.HashPassword(null!, generatedPassword),
+				};
+				var result = await identityRepo.CreateIfNotExistsAsync(userAdmin, cancellationToken: cancellationToken);
+				if (result != IdentityResult.Success)
+				{
+					throw new InvalidOperationException(result.ToString());
+					//throw new InvalidOperationException($"{string.Join(", ", result.Errors.Select(r => r.Description))}");
+				}
+
+				// add roles to the admin user
+				var roles = new[] { DwtRole.ADMIN, DwtRole.ACCOUNT_ADMIN, DwtRole.APP_ADMIN };
+				result = await identityRepo.AddToRolesAsync(userAdmin, roles, cancellationToken: cancellationToken);
+				if (result != IdentityResult.Success)
+				{
+					throw new InvalidOperationException(result.ToString());
+					//throw new InvalidOperationException($"{string.Join(", ", result.Errors.Select(r => r.Description))}");
+				}
 			}
 		}
 	}

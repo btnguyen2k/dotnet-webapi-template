@@ -3,7 +3,7 @@ using Dwt.Shared.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using System.Text.Json.Serialization;
 
 namespace Dwt.Api.Controllers.Samples;
@@ -29,73 +29,84 @@ public partial class UsersController : ApiBaseController
 	/// Creates a new user account.
 	/// </summary>
 	/// <param name="req"></param>
-	/// <param name="userManager"></param>
+	/// <param name="identityRepository"></param>
+	/// <param name="identityOptions"></param>
 	/// <param name="passwordValidator"></param>
+	/// <param name="lookupNormalizer"></param>
+	/// <param name="passwordHasher"></param>
 	/// <param name="authenticator"></param>
 	/// <param name="authenticatorAsync"></param>
+	/// <param name="userManager"></param>
 	/// <returns></returns>
 	/// <exception cref="ArgumentNullException"></exception>
 	[HttpPost("/api/users")]
 	[Authorize(Policy = DwtIdentity.POLICY_NAME_ADMIN_OR_CREATE_ACCOUNT_PERM)]
 	public async Task<ActionResult<ApiResp<UserResponse>>> CreateUser(
 		[FromBody] CreateUserReq req,
-		UserManager<DwtUser> userManager,
+		IIdentityRepository identityRepository,
+		IOptions<IdentityOptions> identityOptions,
 		IPasswordValidator<DwtUser> passwordValidator,
-		IAuthenticator? authenticator, IAuthenticatorAsync? authenticatorAsync)
+		ILookupNormalizer lookupNormalizer,
+		IPasswordHasher<DwtUser> passwordHasher,
+		IAuthenticator? authenticator, IAuthenticatorAsync? authenticatorAsync,
+		UserManager<DwtUser> userManager)
 	{
-		if (authenticator == null && authenticatorAsync == null)
+		var (vAuthTokenResult, currentUser) = await VerifyAuthTokenAndCurrentUser(
+			identityRepository,
+			identityOptions.Value,
+			authenticator, authenticatorAsync);
+		if (vAuthTokenResult != null)
 		{
-			throw new ArgumentNullException("No authenticator defined.", (Exception?)null);
+			// current auth token and signed-in user should all be valid
+			return vAuthTokenResult;
 		}
 
-		var jwtToken = GetAuthToken();
-		var tokenValidationResult = await ValidateAuthTokenAsync(authenticator, authenticatorAsync, jwtToken!);
-		if (tokenValidationResult.Status != 200)
+		var vPwdResult = await passwordValidator.ValidateAsync(userManager, null!, req.Password);
+		if (vPwdResult != IdentityResult.Success)
 		{
-			return ResponseNoData(403, tokenValidationResult.Error);
+			// supplied password should pass complexity validation
+			return ResponseNoData(400, vPwdResult.ToString());
 		}
 
-		var iresult = await passwordValidator.ValidateAsync(userManager, null!, req.Password);
-		if (iresult != IdentityResult.Success)
-		{
-			return ResponseNoData(400, iresult.ToString());
-		}
-
-		if (await userManager.FindByNameAsync(req.Username) != null)
+		if (await identityRepository.GetUserByUserNameAsync(req.Username) != null)
 		{
 			return ResponseNoData(400, $"User with username '{req.Username}' already exists.");
 		}
-		if (await userManager.FindByEmailAsync(req.Email) != null)
+		if (await identityRepository.GetUserByEmailAsync(req.Email) != null)
 		{
 			return ResponseNoData(400, $"User with email '{req.Email}' already exists.");
 		}
 
-		var currentUser = await GetUserAsync(identityOptions, userManager);
-		if (currentUser == null)
-		{
-			return _respAuthenticationRequired;
-		}
-
 		if (req.Roles != null)
 		{
-			var vresult = await ValidateRoles(currentUser, req.Roles);
-			if (vresult != null)
+			var vRolesResult = await ValidateRolesBeforeCreateOrUpdate(identityRepository, currentUser, req.Roles);
+			if (vRolesResult != null)
 			{
-				return vresult;
+				// supplied roles should be valid
+				return vRolesResult;
 			}
 		}
 
-		var newUser = new DwtUser { UserName = req.Username.ToLower(), Email = req.Email.ToLower() };
-		iresult = await userManager.CreateAsync(newUser, req.Password);
+		var newUser = new DwtUser
+		{
+			UserName = req.Username.ToLower(),
+			PasswordHash = passwordHasher.HashPassword(null!, req.Password),
+			NormalizedUserName = lookupNormalizer.NormalizeName(req.Username),
+			Email = req.Email.ToLower(),
+			NormalizedEmail = lookupNormalizer.NormalizeEmail(req.Email)
+		};
+		var iresult = await identityRepository.CreateAsync(newUser);
 		if (iresult != IdentityResult.Success)
 		{
+			//return ResponseNoData(500, $"{string.Join(", ", iresult.Errors.Select(r => r.Description))}");
 			return ResponseNoData(500, iresult.ToString());
 		}
 		if (req.Roles != null)
 		{
-			iresult = await userManager.AddToRolesAsync(newUser, req.Roles);
+			iresult = await identityRepository.AddToRolesAsync(newUser, req.Roles);
 			if (iresult != IdentityResult.Success)
 			{
+				//return ResponseNoData(500, $"{string.Join(", ", iresult.Errors.Select(r => r.Description))}");
 				return ResponseNoData(500, iresult.ToString());
 			}
 		}
@@ -105,7 +116,7 @@ public partial class UsersController : ApiBaseController
 			Id = newUser.Id,
 			Username = newUser.UserName!,
 			Email = newUser.Email!,
-			Roles = userManager.GetRolesAsync(newUser).Result
+			Roles = (await identityRepository.GetRolesAsync(newUser)).Select(r => r.Name!)
 		});
 	}
 }

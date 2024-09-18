@@ -1,47 +1,9 @@
 ﻿using Dwt.Shared.Identity;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Dwt.Shared.EF.Identity;
-
-public class DwtIdentityDbContext : IdentityDbContext<DwtUser, DwtRole, string>
-{
-	//private readonly ILogger<DwtIdentityDbContext> logger;
-
-	public DwtIdentityDbContext(DbContextOptions<DwtIdentityDbContext> options/*, ILogger<DwtIdentityDbContext> logger*/) : base(options)
-	{
-		//this.logger = logger;
-		//logger.LogCritical("DwtIdentityDbContext instances created.");
-		//ChangeTracker.DetectingEntityChanges += (sender, e) =>
-		//{
-		//	logger.LogError("Detected changes: {e}", e.Entry.ToString());
-		//};
-	}
-
-	//protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-	//{
-	//	base.OnConfiguring(optionsBuilder);
-	//}
-
-	private void ChangeTracker_DetectedAllChanges(object? sender, Microsoft.EntityFrameworkCore.ChangeTracking.DetectedChangesEventArgs e) => throw new NotImplementedException();
-
-	protected override void OnModelCreating(ModelBuilder modelBuilder)
-	{
-		base.OnModelCreating(modelBuilder);
-		new RoleEntityTypeConfiguration().Configure(modelBuilder.Entity<DwtRole>());
-		new IdentityRoleClaimEntityTypeConfiguration().Configure(modelBuilder.Entity<IdentityRoleClaim<string>>());
-		new IdentityUserEntityTypeConfiguration().Configure(modelBuilder.Entity<DwtUser>());
-		new IdentityUserClaimEntityTypeConfiguration().Configure(modelBuilder.Entity<IdentityUserClaim<string>>());
-		//new IdentityUserLoginEntityTypeConfiguration().Configure(modelBuilder.Entity<IdentityUserLogin<string>>());
-		new IdentityUserRoleEntityTypeConfiguration().Configure(modelBuilder.Entity<IdentityUserRole<string>>());
-		//new IdentityUserTokenEntityTypeConfiguration().Configure(modelBuilder.Entity<IdentityUserToken<string>>());
-
-		modelBuilder.Ignore<IdentityUserLogin<string>>();
-		modelBuilder.Ignore<IdentityUserToken<string>>();
-	}
-}
 
 /* Demostration of how to use the EntityTypeConfiguration classes to customize table and column names */
 
@@ -96,13 +58,17 @@ sealed class IdentityUserEntityTypeConfiguration : IEntityTypeConfiguration<DwtU
 		builder.HasIndex(t => t.NormalizedUserName).IsUnique();
 		builder.HasIndex(t => t.NormalizedEmail).IsUnique();
 
-		builder.Ignore(t => t.EmailConfirmed);
-		builder.Ignore(t => t.PhoneNumber);
-		builder.Ignore(t => t.PhoneNumberConfirmed);
-		builder.Ignore(t => t.TwoFactorEnabled);
-		builder.Ignore(t => t.LockoutEnd);
-		builder.Ignore(t => t.LockoutEnabled);
-		builder.Ignore(t => t.AccessFailedCount);
+		builder
+			.Ignore(t => t.EmailConfirmed)
+			.Ignore(t => t.PhoneNumber)
+			.Ignore(t => t.PhoneNumberConfirmed)
+			.Ignore(t => t.TwoFactorEnabled)
+			.Ignore(t => t.LockoutEnd)
+			.Ignore(t => t.LockoutEnabled)
+			.Ignore(t => t.AccessFailedCount)
+			.Ignore(t => t.Roles)
+			.Ignore(t => t.Claims)
+			;
 	}
 }
 

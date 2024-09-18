@@ -32,6 +32,11 @@ public class Application
 	public string? ConcurrencyStamp { get; set; } = Guid.NewGuid().ToString();
 
 	public override string ToString() => DisplayName ?? string.Empty;
+
+	/// <summary>
+	/// Notifies that the data has changed, updating the <see cref="ConcurrencyStamp"/>.
+	/// </summary>
+	public void Touch() => ConcurrencyStamp = Guid.NewGuid().ToString();
 }
 
 public interface IApplicationRepository : IGenericRepository<Application, string>

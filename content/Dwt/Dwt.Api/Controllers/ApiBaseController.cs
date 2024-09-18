@@ -40,6 +40,19 @@ public abstract class ApiBaseController : ControllerBase
 	});
 
 	/// <summary>
+	/// Convenience method to return a 200 OK response with data and message.
+	/// </summary>
+	/// <param name="message"></param>
+	/// <param name="data"></param>
+	/// <returns></returns>
+	protected static ObjectResult ResponseOk<T>(string message, T? data) => data == null ? _respOk : new OkObjectResult(new ApiResp<T>
+	{
+		Status = 200,
+		Message = message,
+		Data = data
+	});
+
+	/// <summary>
 	/// Convenience method to return a response without attached data.
 	/// </summary>
 	/// <param name="statusCode"></param>
@@ -120,7 +133,7 @@ public abstract class ApiBaseController : ControllerBase
 	{
 		if (authenticator == null && authenticatorAsync == null)
 		{
-			throw new ArgumentNullException("No authenticator defined.", (Exception?)null);
+			throw new ArgumentNullException("No authenticator defined.");
 		}
 		return authenticatorAsync != null
 			? await authenticatorAsync.ValidateAsync(token)
@@ -131,10 +144,13 @@ public abstract class ApiBaseController : ControllerBase
 	/// Get the current authenticated users.
 	/// </summary>
 	/// <returns></returns>
-	protected async Task<DwtUser?> GetUserAsync(IdentityOptions identityOptions, UserManager<DwtUser> userManager)
+	protected async Task<DwtUser?> GetCurrentUserAsync(IdentityOptions identityOptions, IIdentityRepository identityRepository)
 	{
 		var userId = GetUserID(identityOptions);
-		return userId != null ? await userManager.FindByIdAsync(userId) : null;
+		var userName = GetUserName(identityOptions);
+		return userId != null
+			? await identityRepository.GetUserByIDAsync(userId)
+			: userName != null ? await identityRepository.GetUserByUserNameAsync(userName) : null;
 	}
 
 	/// <summary>

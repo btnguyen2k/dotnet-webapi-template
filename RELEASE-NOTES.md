@@ -1,5 +1,12 @@
 # .NET WebAPI Template release notes
 
+## 2024-09-18 - v1.2.0
+
+### Added/Refactoring
+
+- Added caching support.
+- Refactored from using AspNET Core Identity directly to repository pattern.
+
 ## 2024-09-10 - v1.1.0
 
 ### Added/Refactoring

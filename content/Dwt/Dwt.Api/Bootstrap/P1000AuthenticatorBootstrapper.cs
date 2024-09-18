@@ -23,14 +23,10 @@ public class AuthenticatorBootstrapper
 {
 	public static void ConfigureBuilder(WebApplicationBuilder appBuilder, IOptions<JwtOptions> jwtOptions)
 	{
-		//var logger = LoggerFactory.Create(b => b.AddConsole()).CreateLogger<AuthenticatorBootstrapper>();
-
 		// use JwtBearer authentication scheme
 		appBuilder.Services.AddAuthentication()
 		.AddJwtBearer(options =>
 		{
-			//logger.LogCritical("AddJwtBearer: {options}", JsonSerializer.Serialize(options));
-
 			options.SaveToken = true;
 			options.RequireHttpsMetadata = false;
 			options.TokenValidationParameters = jwtOptions.Value.TokenValidationParameters;
@@ -80,11 +76,6 @@ public class SampleAuthorizationMiddlewareResultHandler : IAuthorizationMiddlewa
 			if (authorizeResult.Challenged) await context.ChallengeAsync();
 			else if (authorizeResult.Forbidden) await context.ForbidAsync();
 
-			//var logger = context.RequestServices.GetRequiredService<ILogger<SampleAuthorizationMiddlewareResultHandler>>();
-			//logger.LogCritical("AuthResult: {result}", JsonSerializer.Serialize(authorizeResult));
-			//logger.LogCritical("Policy: {policy}", JsonSerializer.Serialize(policy));
-			//logger.LogCritical("Items: {items}", JsonSerializer.Serialize(context.Items));
-
 			context.Response.ContentType = "application/json";
 			context.Response.StatusCode = StatusCodes.Status401Unauthorized;
 			await context.Response.BodyWriter.WriteAsync(unauthorizedResult);
@@ -112,7 +103,7 @@ public sealed class SampleJwtAuthenticator(
 	private readonly string claimTypeRole = identityOptions.Value.ClaimsIdentity.RoleClaimType;
 	private const string DefaultSecValue = "00000000";
 
-	private async Task<string> GenerateJwtToken(UserManager<DwtUser> userManager, DwtUser user, DateTime expiry)
+	private async Task<string> GenerateJwtToken(IIdentityRepository identityRepo, DwtUser user, DateTime expiry)
 	{
 		var authClaims = new List<Claim>
 		{
@@ -122,8 +113,8 @@ public sealed class SampleJwtAuthenticator(
 			new("sec", user.SecurityStamp?.Substring(user.SecurityStamp.Length - 8) ?? DefaultSecValue)
 		};
 
-		var userRoles = await userManager.GetRolesAsync(user);
-		authClaims.AddRange(userRoles.Select(role => new Claim(claimTypeRole, role)));
+		var userRoles = await identityRepo.GetRolesAsync(user);
+		authClaims.AddRange(userRoles.Select(role => new Claim(claimTypeRole, role.Name!)));
 
 		// Add more claims as needed
 
@@ -135,25 +126,24 @@ public sealed class SampleJwtAuthenticator(
 	{
 		using (var scope = serviceProvider.CreateScope())
 		{
-			var userManager = scope.ServiceProvider.GetRequiredService<UserManager<DwtUser>>();
-			var user = req.Id != null ? await userManager.FindByNameAsync(req.Id) : null;
+			var identityRepo = scope.ServiceProvider.GetRequiredService<IIdentityRepository>();
+			var user = req.Id != null ? await identityRepo.GetUserByUserNameAsync(req.Id) : null;
 			if (user == null)
 			{
 				logger.LogError("Authentication failed: user '{username}' not found.", req?.Id);
 				return AuthResp.AuthFailed;
 			}
-			var signinManager = scope.ServiceProvider.GetRequiredService<SignInManager<DwtUser>>();
-			var result = await signinManager.CheckPasswordSignInAsync(user, req?.Secret ?? "", false);
-			if (!result.Succeeded)
+			var pwdHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<DwtUser>>();
+			var pwdHashResult = pwdHasher.VerifyHashedPassword(user, user.PasswordHash!, req?.Secret ?? "");
+			if (pwdHashResult != PasswordVerificationResult.Success && pwdHashResult != PasswordVerificationResult.SuccessRehashNeeded)
 			{
-				logger.LogError("Authentication failed: {error}", result.ToString());
+				logger.LogError("Authentication failed: password verification failed.");
 				return AuthResp.AuthFailed;
 			}
 			var expiry = DateTime.Now.AddSeconds(expirationSeconds);
-			return AuthResp.New(200, await GenerateJwtToken(userManager, user, expiry), expiry);
+			return AuthResp.New(200, await GenerateJwtToken(identityRepo, user, expiry), expiry);
 		}
 	}
-
 
 	/// <inheritdoc />
 	public AuthResp Authenticate(AuthReq req)
@@ -171,11 +161,11 @@ public sealed class SampleJwtAuthenticator(
 			var claimUsername = principal.Claims.FirstOrDefault(c => c.Type == claimTypeUsername)?.Value;
 			using (var scope = serviceProvider.CreateScope())
 			{
-				var userManager = scope.ServiceProvider.GetRequiredService<UserManager<DwtUser>>();
+				var identityRepo = scope.ServiceProvider.GetRequiredService<IIdentityRepository>();
 				var user = claimUserId != null
-					? await userManager.FindByIdAsync(claimUserId)
+					? await identityRepo.GetUserByIDAsync(claimUserId)
 					: claimUsername != null
-						? await userManager.FindByNameAsync(claimUsername)
+						? await identityRepo.GetUserByUserNameAsync(claimUsername)
 						: null;
 				if (user == null)
 				{
@@ -192,9 +182,9 @@ public sealed class SampleJwtAuthenticator(
 						return AuthResp.New(403, "Invalid security stamp.");
 					}
 				}
-				await userManager.UpdateSecurityStampAsync(user); // new token should invalidate all previous tokens
+				await identityRepo.UpdateSecurityStampAsync(user); // new token should invalidate all previous tokens
 				var expiry = DateTime.Now.AddSeconds(expirationSeconds);
-				return AuthResp.New(200, await GenerateJwtToken(userManager, user, expiry), expiry);
+				return AuthResp.New(200, await GenerateJwtToken(identityRepo, user, expiry), expiry);
 			}
 		}
 		catch (Exception e) when (e is ArgumentException || e is SecurityTokenException)

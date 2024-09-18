@@ -3,7 +3,7 @@ using Dwt.Shared.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using System.Text.Json.Serialization;
 
 namespace Dwt.Api.Controllers.Samples;
@@ -16,19 +16,21 @@ public partial class UsersController : ApiBaseController
 	/// <returns></returns>
 	[HttpGet("/api/users/-me")]
 	[Authorize]
-	public async Task<ActionResult<ApiResp<UserResponse>>> GetMyInfo()
+	public async Task<ActionResult<ApiResp<UserResponse>>> GetMyInfo(
+		IOptions<IdentityOptions> identityOptions,
+		IIdentityRepository identityRepository)
 	{
-		var user = await GetUserAsync(identityOptions, userManager);
-		if (user == null)
+		var currentUser = await GetCurrentUserAsync(identityOptions.Value, identityRepository);
+		if (currentUser == null)
 		{
 			return _respAuthenticationRequired;
 		}
 		var userResponse = new UserResponse
 		{
-			Id = user.Id,
-			Username = user.UserName!,
-			Email = user.Email!,
-			Roles = await userManager.GetRolesAsync(user)
+			Id = currentUser.Id,
+			Username = currentUser.UserName!,
+			Email = currentUser.Email!,
+			Roles = (await identityRepository.GetRolesAsync(currentUser)).Select(r => r.Name!)
 		};
 		return ResponseOk(userResponse);
 	}
@@ -44,7 +46,8 @@ public partial class UsersController : ApiBaseController
 
 	public struct ChangePwdResp
 	{
-		public string Message { get; set; }
+		[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+		public string? Message { get; set; }
 
 		public string Token { get; set; }
 	}
@@ -53,56 +56,65 @@ public partial class UsersController : ApiBaseController
 	/// Changes the currently signed-in user's password.
 	/// </summary>
 	/// <param name="req"></param>
+	/// <param name="identityOptions"></param>
+	/// <param name="identityRepository"></param>
 	/// <param name="passwordValidator"></param>
+	/// <param name="passwordHasher"></param>
 	/// <param name="authenticator"></param>
 	/// <param name="authenticatorAsync"></param>
+	/// <param name="userManager"></param>
 	/// <returns></returns>
 	/// <exception cref="ArgumentNullException"></exception>
 	[HttpPost("/api/users/-me/password")]
 	[Authorize]
 	public async Task<ActionResult<ApiResp<ChangePwdResp>>> ChangeMyPassword(
 		[FromBody] ChangePwdReq req,
+		IOptions<IdentityOptions> identityOptions,
+		IIdentityRepository identityRepository,
 		IPasswordValidator<DwtUser> passwordValidator,
-		IAuthenticator? authenticator, IAuthenticatorAsync? authenticatorAsync)
+		IPasswordHasher<DwtUser> passwordHasher,
+		IAuthenticator? authenticator, IAuthenticatorAsync? authenticatorAsync,
+		UserManager<DwtUser> userManager)
 	{
-		if (authenticator == null && authenticatorAsync == null)
+		var (vAuthTokenResult, currentUser) = await VerifyAuthTokenAndCurrentUser(
+			identityRepository,
+			identityOptions.Value,
+			authenticator, authenticatorAsync);
+		if (vAuthTokenResult != null)
 		{
-			throw new ArgumentNullException("No authenticator defined.", (Exception?)null);
+			// current auth token and signed-in user should all be valid
+			return vAuthTokenResult;
 		}
-
-		var jwtToken = GetAuthToken();
-		var tokenValidationResult = await ValidateAuthTokenAsync(authenticator, authenticatorAsync, jwtToken!);
-		if (tokenValidationResult.Status != 200)
-		{
-			return ResponseNoData(403, tokenValidationResult.Error);
-		}
-
-		var userId = GetUserID(identityOptions);
-		var user = await userManager.Users.FirstOrDefaultAsync(u => u.Id == userId);
-		if (user == null || !await userManager.CheckPasswordAsync(user, req.OldPassword))
+		if (passwordHasher.VerifyHashedPassword(currentUser, currentUser.PasswordHash!, req.OldPassword) == PasswordVerificationResult.Failed)
 		{
 			return ResponseNoData(403, "Invalid user/password combination.");
 		}
 
-		var iresult = await passwordValidator.ValidateAsync(userManager, user, req.NewPassword);
-		if (iresult != IdentityResult.Success)
+		var vresult = await passwordValidator.ValidateAsync(userManager, null!, req.NewPassword);
+		if (vresult != IdentityResult.Success)
 		{
-			return ResponseNoData(400, iresult.ToString());
+			return ResponseNoData(400, vresult.ToString());
 		}
 
-		iresult = await userManager.ChangePasswordAsync(user, req.OldPassword, req.NewPassword);
-		if (iresult != IdentityResult.Success)
+		currentUser.PasswordHash = passwordHasher.HashPassword(currentUser, req.NewPassword);
+		currentUser = await identityRepository.UpdateAsync(currentUser);
+		if (currentUser == null)
 		{
-			return ResponseNoData(500, iresult.ToString());
+			return ResponseNoData(500, "Failed to update user.");
+		}
+		currentUser = await identityRepository.UpdateSecurityStampAsync(currentUser);
+		if (currentUser == null)
+		{
+			return ResponseNoData(500, "Failed to update user.");
 		}
 
+		var jwtToken = GetAuthToken();
 		var refreshResult = authenticatorAsync != null
 			? await authenticatorAsync.RefreshAsync(jwtToken!, true)
 			: authenticator?.Refresh(jwtToken!, true);
 
-		return ResponseOk(new ChangePwdResp
+		return ResponseOk("Password changed successfully.", new ChangePwdResp
 		{
-			Message = "Password changed successfully.",
 			Token = refreshResult!.Token!, // changing password should invalidate all previous auth tokens
 		});
 	}

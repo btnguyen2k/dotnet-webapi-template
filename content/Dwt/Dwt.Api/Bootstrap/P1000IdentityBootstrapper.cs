@@ -130,10 +130,19 @@ sealed class IdentityInitializer(
 				identityRepo.Database.EnsureCreated();
 			}
 
+			var nameNormalizer = scope.ServiceProvider.GetRequiredService<ILookupNormalizer>()
+				?? throw new InvalidOperationException("LookupNormalizer service is not registered.");
+
 			logger.LogInformation("Ensuring roles exist...");
 			foreach (var r in DwtRole.ALL_ROLES)
 			{
-				await identityRepo.CreateIfNotExistsAsync(r, cancellationToken: cancellationToken);
+				r.NormalizedName = nameNormalizer.NormalizeName(r.Name);
+				var result = await identityRepo.CreateIfNotExistsAsync(r, cancellationToken: cancellationToken);
+				if (result != IdentityResult.Success)
+				{
+					throw new InvalidOperationException(result.ToString());
+					//throw new InvalidOperationException($"{string.Join(", ", result.Errors.Select(r => r.Description))}");
+				}
 			}
 
 			logger.LogInformation("Ensuring permissions setup...");
@@ -143,7 +152,12 @@ sealed class IdentityInitializer(
 				?? throw new InvalidOperationException($"Role '{DwtRole.ACCOUNT_ADMIN.Id}' does not exist.");
 			foreach (var claim in new Claim[] { DwtIdentity.CLAIM_PERM_CREATE_USER })
 			{
-				await identityRepo.AddClaimIfNotExistsAsync(roleAccountAdmin, claim, cancellationToken: cancellationToken);
+				var result = await identityRepo.AddClaimIfNotExistsAsync(roleAccountAdmin, claim, cancellationToken: cancellationToken);
+				if (result != IdentityResult.Success)
+				{
+					throw new InvalidOperationException(result.ToString());
+					//throw new InvalidOperationException($"{string.Join(", ", result.Errors.Select(r => r.Description))}");
+				}
 			}
 
 			// permissions setup for role APP_ADMIN
@@ -151,7 +165,12 @@ sealed class IdentityInitializer(
 				?? throw new InvalidOperationException($"Role '{DwtRole.APP_ADMIN.Id}' does not exist.");
 			foreach (var claim in new Claim[] { DwtIdentity.CLAIM_PERM_CREATE_APP, DwtIdentity.CLAIM_PERM_DELETE_APP, DwtIdentity.CLAIM_PERM_MODIFY_APP })
 			{
-				await identityRepo.AddClaimIfNotExistsAsync(roleAppAdmin, claim, cancellationToken: cancellationToken);
+				var result = await identityRepo.AddClaimIfNotExistsAsync(roleAppAdmin, claim, cancellationToken: cancellationToken);
+				if (result != IdentityResult.Success)
+				{
+					throw new InvalidOperationException(result.ToString());
+					//throw new InvalidOperationException($"{string.Join(", ", result.Errors.Select(r => r.Description))}");
+				}
 			}
 
 			logger.LogInformation("Ensuring admin user exist...");
@@ -163,8 +182,32 @@ sealed class IdentityInitializer(
 				logger.LogWarning("Admin user does not exist. Creating one with a random password: {password}", generatedPassword);
 				logger.LogWarning("PLEASE REMEMBER THIS PASSWORD AS IT WILL NOT BE DISPLAYED AGAIN!");
 
-				userAdmin = new DwtUser { Id = "admin", UserName = "admin@local", Email = "admin@local" };
-				await identityRepo.CreateIfNotExistsAsync(userAdmin, cancellationToken: cancellationToken);
+				var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<DwtUser>>();
+
+				userAdmin = new DwtUser
+				{
+					Id = "admin",
+					UserName = "admin@local",
+					NormalizedUserName = nameNormalizer.NormalizeName("admin@local"),
+					Email = "admin@local",
+					NormalizedEmail = nameNormalizer.NormalizeEmail("admin@local"),
+					PasswordHash = passwordHasher.HashPassword(null!, generatedPassword),
+				};
+				var result = await identityRepo.CreateIfNotExistsAsync(userAdmin, cancellationToken: cancellationToken);
+				if (result != IdentityResult.Success)
+				{
+					throw new InvalidOperationException(result.ToString());
+					//throw new InvalidOperationException($"{string.Join(", ", result.Errors.Select(r => r.Description))}");
+				}
+
+				// add roles to the admin user
+				var roles = new[] { DwtRole.ADMIN, DwtRole.ACCOUNT_ADMIN, DwtRole.APP_ADMIN };
+				result = await identityRepo.AddToRolesAsync(userAdmin, roles, cancellationToken: cancellationToken);
+				if (result != IdentityResult.Success)
+				{
+					throw new InvalidOperationException(result.ToString());
+					//throw new InvalidOperationException($"{string.Join(", ", result.Errors.Select(r => r.Description))}");
+				}
 			}
 		}
 	}

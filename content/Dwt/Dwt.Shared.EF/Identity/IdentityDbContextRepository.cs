@@ -48,17 +48,21 @@ public class IdentityDbContextRepository : IdentityDbContext<DwtUser, DwtRole, s
 	/*----------------------------------------------------------------------*/
 
 	/// <inheritdoc/>
-	public async Task<DwtUser?> CreateAsync(DwtUser user, CancellationToken cancellationToken = default)
+	public async Task<IdentityResult> CreateAsync(DwtUser user, CancellationToken cancellationToken = default)
 	{
-		var entity = Users.Add(user);
+		var entry = Users.Add(user);
+		entry.Entity.SecurityStamp = Guid.NewGuid().ToString("N");
+		entry.Entity.Touch();
 		var result = await SaveChangesAsync(cancellationToken);
-		return result > 0 ? entity.Entity : null;
+		return result > 0
+			? IdentityResult.Success
+			: IdentityResult.Failed(new IdentityError() { Code = "500", Description = $"User '{user.UserName}' couldnot be created." });
 	}
 
 	/// <inheritdoc/>
-	public async Task<DwtUser?> CreateIfNotExistsAsync(DwtUser user, CancellationToken cancellationToken = default)
+	public async Task<IdentityResult> CreateIfNotExistsAsync(DwtUser user, CancellationToken cancellationToken = default)
 	{
-		if (await GetUserByIDAsync(user.Id, cancellationToken: cancellationToken) is not null) return null;
+		if (await GetUserByIDAsync(user.Id, cancellationToken: cancellationToken) is not null) return IdentityResult.Success;
 		return await CreateAsync(user, cancellationToken);
 	}
 
@@ -92,12 +96,18 @@ public class IdentityDbContextRepository : IdentityDbContext<DwtUser, DwtRole, s
 	}
 
 	/// <inheritdoc/>
+	public async Task<IEnumerable<DwtUser>> AllUsersAsync(CancellationToken cancellationToken = default)
+	{
+		return await Users.ToListAsync(cancellationToken) ?? [];
+	}
+
+	/// <inheritdoc/>
 	public async Task<DwtUser?> UpdateAsync(DwtUser user, CancellationToken cancellationToken = default)
 	{
-		var entity = Users.Update(user);
-		entity.Entity.ConcurrencyStamp = Guid.NewGuid().ToString();
+		var entry = Users.Update(user);
+		entry.Entity.Touch();
 		var result = await SaveChangesAsync(cancellationToken);
-		return result > 0 ? entity.Entity : null;
+		return result > 0 ? entry.Entity : null;
 	}
 
 	/// <inheritdoc/>
@@ -105,6 +115,14 @@ public class IdentityDbContextRepository : IdentityDbContext<DwtUser, DwtRole, s
 	{
 		user.SecurityStamp = Guid.NewGuid().ToString("N");
 		return await UpdateAsync(user, cancellationToken);
+	}
+
+	/// <inheritdoc/>
+	public async Task<IdentityResult> DeleteAsync(DwtUser user, CancellationToken cancellationToken = default)
+	{
+		Users.Remove(user);
+		await SaveChangesAsync(cancellationToken);
+		return IdentityResult.Success;
 	}
 
 	/// <inheritdoc/>
@@ -124,6 +142,137 @@ public class IdentityDbContextRepository : IdentityDbContext<DwtUser, DwtRole, s
 			.ToListAsync(cancellationToken) ?? [];
 	}
 
+	/// <inheritdoc/>
+	public async Task<bool> HasRoleAsync(DwtUser user, DwtRole role, CancellationToken cancellationToken = default)
+	{
+		var userRoles = await GetRolesAsync(user, cancellationToken: cancellationToken);
+		return userRoles.Contains(role);
+	}
+
+	/// <inheritdoc/>
+	public async Task<bool> HasRoleAsync(DwtUser user, string roleName, CancellationToken cancellationToken = default)
+	{
+		var userRoles = await GetRolesAsync(user, cancellationToken: cancellationToken);
+		return userRoles.Any(r => roleName.Equals(r.Name, StringComparison.InvariantCultureIgnoreCase));
+	}
+
+	/// <inheritdoc/>
+	public async Task<IdentityResult> AddToRolesAsync(DwtUser user, IEnumerable<DwtRole> roles, CancellationToken cancellationToken = default)
+	{
+		var rolesList = roles is not null ? roles.ToList() : []; // Convert to list to avoid multiple enumerations
+		if (rolesList.Count == 0) return IdentityResult.Success;
+		foreach (var role in rolesList)
+		{
+			UserRoles.Add(new IdentityUserRole<string> { UserId = user.Id, RoleId = role.Id });
+		}
+		var result = await SaveChangesAsync(cancellationToken);
+		return result > 0
+			? IdentityResult.Success
+			: IdentityResult.Failed(new IdentityError()
+			{
+				Code = "500",
+				Description = $"Failed to add user '{user.UserName}' to roles [{string.Join(", ", rolesList.Select(r => r.Name!))}]"
+			});
+	}
+
+	/// <inheritdoc/>
+	public async Task<IdentityResult> AddToRolesAsync(DwtUser user, IEnumerable<string> roleNames, CancellationToken cancellationToken = default)
+	{
+		var roles = new List<DwtRole>();
+		foreach (var roleName in roleNames)
+		{
+			var role = await GetRoleByNameAsync(roleName, cancellationToken: cancellationToken);
+			if (role is null)
+				return IdentityResult.Failed(new IdentityError()
+				{
+					Code = "404",
+					Description = $"Role '{roleName}' does not exist."
+				});
+			roles.Add(role);
+		}
+		return await AddToRolesAsync(user, roles, cancellationToken: cancellationToken);
+	}
+
+	/// <inheritdoc/>
+	public async Task<IdentityResult> RemoveFromRolesAsync(DwtUser user, IEnumerable<DwtRole> roles, CancellationToken cancellationToken = default)
+	{
+		var rolesList = roles is not null ? roles.ToList() : []; // Convert to list to avoid multiple enumerations
+		if (rolesList.Count == 0) return IdentityResult.Success;
+		UserRoles.RemoveRange(rolesList.Select(r => new IdentityUserRole<string>() { RoleId = r.Id, UserId = user.Id }));
+		await SaveChangesAsync(cancellationToken);
+		return IdentityResult.Success;
+	}
+
+	/// <inheritdoc/>
+	public async Task<IdentityResult> RemoveFromRolesAsync(DwtUser user, IEnumerable<string> roleNames, CancellationToken cancellationToken = default)
+	{
+		var roles = new List<DwtRole>();
+		foreach (var roleName in roleNames)
+		{
+			var role = await GetRoleByNameAsync(roleName, cancellationToken: cancellationToken);
+			if (role is null)
+				return IdentityResult.Failed(new IdentityError()
+				{
+					Code = "404",
+					Description = $"Role '{roleName}' does not exist."
+				});
+			roles.Add(role);
+		}
+		return await RemoveFromRolesAsync(user, roles, cancellationToken: cancellationToken);
+	}
+
+	/// <inheritdoc/>
+	public async Task<IdentityResult> AddClaimAsync(DwtUser user, Claim claim, CancellationToken cancellationToken = default)
+	{
+		UserClaims.Add(new IdentityUserClaim<string>
+		{
+			UserId = user.Id,
+			ClaimType = claim.Type,
+			ClaimValue = claim.Value
+		});
+		var result = await SaveChangesAsync(cancellationToken);
+		return result > 0
+			? IdentityResult.Success
+			: IdentityResult.Failed(new IdentityError()
+			{
+				Code = "500",
+				Description = $"Claim '{claim.Type}:{claim.Value}' couldnot be added to user '{user.UserName}'."
+			});
+	}
+
+	/// <inheritdoc/>
+	public async Task<IdentityResult> AddClaimIfNotExistsAsync(DwtUser user, Claim claim, CancellationToken cancellationToken = default)
+	{
+		var existing = await UserClaims.FirstOrDefaultAsync(
+			uc => uc.UserId == user.Id && uc.ClaimType == claim.Type && uc.ClaimValue == claim.Value,
+			cancellationToken);
+		return existing is not null ? IdentityResult.Success : await AddClaimAsync(user, claim, cancellationToken);
+	}
+
+	/// <inheritdoc/>
+	public async Task<IdentityResult> AddClaimsAsync(DwtUser user, IEnumerable<Claim> claims, CancellationToken cancellationToken = default)
+	{
+		var claimsList = claims is not null ? claims.ToList() : []; // Convert to list to avoid multiple enumerations
+		if (claimsList.Count == 0) return IdentityResult.Success;
+		foreach (var claim in claimsList)
+		{
+			UserClaims.Add(new IdentityUserClaim<string>
+			{
+				UserId = user.Id,
+				ClaimType = claim.Type,
+				ClaimValue = claim.Value
+			});
+		}
+		var result = await SaveChangesAsync(cancellationToken);
+		return result > 0
+			? IdentityResult.Success
+			: IdentityResult.Failed(new IdentityError()
+			{
+				Code = "500",
+				Description = $"Failed to add claims [{string.Join(", ", claimsList.Select(c => $"{c.Type}:{c.Value}"))}] to user '{user.UserName}'."
+			});
+	}
+
 	/*----------------------------------------------------------------------*/
 
 	/// <inheritdoc/>
@@ -139,18 +288,20 @@ public class IdentityDbContextRepository : IdentityDbContext<DwtUser, DwtRole, s
 	}
 
 	/// <inheritdoc/>
-	public async Task<DwtRole?> CreateAsync(DwtRole role, CancellationToken cancellationToken = default)
+	public async Task<IdentityResult> CreateAsync(DwtRole role, CancellationToken cancellationToken = default)
 	{
-		var entity = Roles.Add(role);
+		var entry = Roles.Add(role);
 		var result = await SaveChangesAsync(cancellationToken);
-		return result > 0 ? entity.Entity : null;
+		return result > 0
+			? IdentityResult.Success
+			: IdentityResult.Failed(new IdentityError() { Code = "500", Description = $"Role '{role.Name}' couldnot be created." });
 	}
 
 	/// <inheritdoc/>
-	public async Task<DwtRole?> CreateIfNotExistsAsync(DwtRole role, CancellationToken cancellationToken = default)
+	public async Task<IdentityResult> CreateIfNotExistsAsync(DwtRole role, CancellationToken cancellationToken = default)
 	{
-		if (await GetRoleByIDAsync(role.Id, cancellationToken: cancellationToken) is not null) return null;
-		return await CreateAsync(role, cancellationToken);
+		if (await GetRoleByIDAsync(role.Id, cancellationToken: cancellationToken) is not null) return IdentityResult.Success;
+		return await CreateAsync(role, cancellationToken: cancellationToken);
 	}
 
 	/// <inheritdoc/>
@@ -161,45 +312,55 @@ public class IdentityDbContextRepository : IdentityDbContext<DwtUser, DwtRole, s
 			.ToListAsync(cancellationToken) ?? [];
 	}
 
-	/*----------------------------------------------------------------------*/
-
 	/// <inheritdoc/>
-	public async Task<IdentityUserClaim<string>?> AddClaimAsync(DwtUser user, Claim claim, CancellationToken cancellationToken = default)
+	public async Task<IdentityResult> AddClaimAsync(DwtRole role, Claim claim, CancellationToken cancellationToken = default)
 	{
-		var entry = UserClaims.Add(new IdentityUserClaim<string>
-		{
-			UserId = user.Id,
-			ClaimType = claim.Type,
-			ClaimValue = claim.Value
-		});
-		var result = await SaveChangesAsync(cancellationToken);
-		return result > 0 ? entry.Entity : null;
-	}
-
-	/// <inheritdoc/>
-	public async Task<IdentityUserClaim<string>?> AddClaimIfNotExistsAsync(DwtUser user, Claim claim, CancellationToken cancellationToken = default)
-	{
-		var existing = await UserClaims.FirstOrDefaultAsync(uc => uc.UserId == user.Id && uc.ClaimType == claim.Type && uc.ClaimValue == claim.Value, cancellationToken);
-		return existing is not null ? null : await AddClaimAsync(user, claim, cancellationToken);
-	}
-
-	/// <inheritdoc/>
-	public async Task<IdentityRoleClaim<string>?> AddClaimAsync(DwtRole role, Claim claim, CancellationToken cancellationToken = default)
-	{
-		var entry = RoleClaims.Add(new IdentityRoleClaim<string>
+		RoleClaims.Add(new IdentityRoleClaim<string>
 		{
 			RoleId = role.Id,
 			ClaimType = claim.Type,
 			ClaimValue = claim.Value
 		});
 		var result = await SaveChangesAsync(cancellationToken);
-		return result > 0 ? entry.Entity : null;
+		return result > 0
+			? IdentityResult.Success
+			: IdentityResult.Failed(new IdentityError()
+			{
+				Code = "500",
+				Description = $"Claim '{claim.Type}:{claim.Value}' couldnot be added to role '{role.Name}'."
+			});
 	}
 
 	/// <inheritdoc/>
-	public async Task<IdentityRoleClaim<string>?> AddClaimIfNotExistsAsync(DwtRole role, Claim claim, CancellationToken cancellationToken = default)
+	public async Task<IdentityResult> AddClaimIfNotExistsAsync(DwtRole role, Claim claim, CancellationToken cancellationToken = default)
 	{
-		var existing = await RoleClaims.FirstOrDefaultAsync(rc => rc.RoleId == role.Id && rc.ClaimType == claim.Type && rc.ClaimValue == claim.Value, cancellationToken);
-		return existing is not null ? null : await AddClaimAsync(role, claim, cancellationToken);
+		var existing = await RoleClaims.FirstOrDefaultAsync(
+			rc => rc.RoleId == role.Id && rc.ClaimType == claim.Type && rc.ClaimValue == claim.Value,
+			cancellationToken);
+		return existing is not null ? IdentityResult.Success : await AddClaimAsync(role, claim, cancellationToken);
+	}
+
+	/// <inheritdoc/>
+	public async Task<IdentityResult> AddClaimsAsync(DwtRole role, IEnumerable<Claim> claims, CancellationToken cancellationToken = default)
+	{
+		var claimsList = claims is not null ? claims.ToList() : []; // Convert to list to avoid multiple enumerations
+		if (claimsList.Count == 0) return IdentityResult.Success;
+		foreach (var claim in claimsList)
+		{
+			RoleClaims.Add(new IdentityRoleClaim<string>
+			{
+				RoleId = role.Id,
+				ClaimType = claim.Type,
+				ClaimValue = claim.Value
+			});
+		}
+		var result = await SaveChangesAsync(cancellationToken);
+		return result > 0
+			? IdentityResult.Success
+			: IdentityResult.Failed(new IdentityError()
+			{
+				Code = "500",
+				Description = $"Failed to add claims [{string.Join(", ", claimsList.Select(c => $"{c.Type}:{c.Value}"))}] to role '{role.Name}'."
+			});
 	}
 }

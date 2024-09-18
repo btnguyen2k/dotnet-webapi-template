@@ -34,7 +34,7 @@ public class Application
 	public override string ToString() => DisplayName ?? string.Empty;
 
 	/// <summary>
-	/// Notified that the data has changed, updating the <see cref="ConcurrencyStamp"/>.
+	/// Notifies that the data has changed, updating the <see cref="ConcurrencyStamp"/>.
 	/// </summary>
 	public void Touch() => ConcurrencyStamp = Guid.NewGuid().ToString();
 }

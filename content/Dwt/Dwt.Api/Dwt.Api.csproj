@@ -20,7 +20,7 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.8" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlserver" Version="8.0.8" />
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="8.0.8" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.8.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.8.1" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.1.0" />
   </ItemGroup>
 

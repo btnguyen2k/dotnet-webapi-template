@@ -1,3 +1,7 @@
+# Archive Mode
+
+**This project/template has been merged to a new modern template and no longer updated. Please continue your support at the new project template home: https://github.com/DDTH/blazor-admin-template**
+
 # .NET WebAPI Template
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
